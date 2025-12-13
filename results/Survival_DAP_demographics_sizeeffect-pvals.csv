@@ -1,0 +1,5 @@
+"Breed_Class","Sex","log.rank.pvalue"
+"Non-AKC-Recognized or Mixed Breed","Female",1.18874867995139e-65
+"Non-AKC-Recognized or Mixed Breed","Male",1.66119279537528e-88
+"AKC-Recognized Breed","Female",1.38451446438582e-102
+"AKC-Recognized Breed","Male",8.2128873397465e-141
