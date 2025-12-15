@@ -178,7 +178,7 @@ plt.forest.mean.b.s<-ggplot(fit.b.s.sum.df)+
   facet_wrap(~Size_Class_at_HLES ,ncol=1)
 print(plt.forest.mean.b.s)
 
-ggsave(file.path(figfolder,"SuppFig.Survival_DAP_demographics.forest.median.IQR.pdf"),
+ggsave(file.path(figfolder,"Supp.Fig.Survival_DAP_demographics.forest.median.IQR.pdf"),
        plt.forest.median.b.s)
-ggsave(file.path(figfolder,"SuppFig.Survival_DAP_demographics.forest.mean.pdf"),
+ggsave(file.path(figfolder,"Supp.Fig.Survival_DAP_demographics.forest.mean.pdf"),
        plt.forest.mean.b.s)
