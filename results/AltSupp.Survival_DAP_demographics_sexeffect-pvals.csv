@@ -1,0 +1,11 @@
+"Weight_Class_10KGBin_at_HLES","Breed_Class","log.rank.pvalue"
+"40+ kg","Non-AKC-Recognized or Mixed Breed",0.971030983903906
+"40+ kg","AKC-Recognized Breed",0.02086647603696
+"30-39.9 kg","Non-AKC-Recognized or Mixed Breed",0.120420722393377
+"30-39.9 kg","AKC-Recognized Breed",0.0291573662571551
+"20-29.9 kg","Non-AKC-Recognized or Mixed Breed",0.695241712121946
+"20-29.9 kg","AKC-Recognized Breed",0.260346058005314
+"10-19.9 kg","Non-AKC-Recognized or Mixed Breed",0.504228877521048
+"10-19.9 kg","AKC-Recognized Breed",0.875079890569853
+"0-9.9 kg","Non-AKC-Recognized or Mixed Breed",0.511524346252353
+"0-9.9 kg","AKC-Recognized Breed",0.458634780701093

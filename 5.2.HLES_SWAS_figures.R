@@ -1,0 +1,188 @@
+library(ClustOfVar)
+library(ggdendro)
+library(ggplot2)
+library(tidyverse)
+figfolder <- "Figures"
+resultsfolder <- "Results"
+load(file.path(resultsfolder,"Supp.HLES_Cox.Rdata"))
+
+## Manhattan plot
+
+plt.man.hles<-
+  ggplot(subset(pvals,!is.na(score.pval.adjust)))+
+  geom_point(aes(y=-log10(score.pval.adjust),x=as.numeric(Variable),
+                 color=variable_group_name,size=score.pval.adjust<0.05))+
+  geom_segment(aes(y=-log10(score.pval.adjust),x=as.numeric(Variable),
+                   color=variable_group_name,yend=0,xend=as.numeric(Variable)))+
+  geom_rect(aes(xmin=xmin,xmax=xmax,ymin=-10,ymax=-1,fill=variable_group_name),
+            data=variable_group_tab.df)+
+  scale_fill_discrete("",labels=gsub(" ","\n",
+                                     as.character(variable_group_tab.df$variable_group_name)))+
+  scale_size_manual("p.adjust<0.05",values=c(0.01,1))+
+  ylab("-Log10(FDR-adjusted p value)")+
+  ylim(-35,NA)+
+  theme_bw()+
+  xlab("HLES Variable")+theme(axis.text.x = element_blank(),
+                              axis.ticks = element_blank(),
+                              panel.grid.major.x = element_blank(),
+                              panel.grid.minor.x = element_blank(),
+                              legend.position = "inside",
+                              legend.position.inside = c(0.5,0.01),
+                              legend.justification = c("center","bottom"),
+                              legend.text = element_text(size = 9))+
+  guides(color="none",size="none",fill=guide_legend(nrow=1))
+print(plt.man.hles)
+ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_Manh.pdf"),plt.man.hles,height=3,width=6,scale=2)
+
+## Plots of categorical variables
+pdf(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cox.categorical.pdf"),height=4.5,width=6)
+for (j in 1:nrow(vars.to.plot)) {
+  var.now <- vars.to.plot$Variable[j]
+  pval.now <- vars.to.plot$score.pval.adjust[j]
+  cox.coef.tmp <- subset(cox.coef,Variable == var.now)
+  if (cox.coef.tmp$Type[1] == "factor") {
+    print(paste(j,var.now,"----------"))
+    labels.now <- trimws(strsplit(vars.to.plot$ValueLabels[j],"\\|")[[1]])
+    names(labels.now) <- trimws(strsplit(vars.to.plot$Values[j],"\\|")[[1]])
+    if (sum(duplicated(labels.now))>0) {
+      labels.now <- paste(labels.now,names(labels.now),sep="-")
+    }
+    cox.coef.tmp$y <- factor(sub(".","",cox.coef.tmp$y),
+                             levels=labels.now)
+    cox.coef.tmp <- cox.coef.tmp[order(cox.coef.tmp$y,decreasing = TRUE),]
+    cox.coef.tmp[nrow(cox.coef.tmp)+1,] <- cox.coef.tmp[1,]
+    n <- nrow(cox.coef.tmp)
+    rownames(cox.coef.tmp)[n] <- paste0("x",labels.now[1])
+    cox.coef.tmp$y[n] <- labels.now[1]
+    cox.coef.tmp$Variable.y[n] <- paste(cox.coef.tmp$Variable[n],cox.coef.tmp$y[n],sep="|")
+    cox.coef.tmp[n,c("coef","exp(coef)","se(coef)","z","Pr(>|z|)",
+                     "exp(-coef)","lower .95","upper .95")]<-
+      c(0,1,0,0,1,1,1,1)
+    plt.cox.categorical.tmp <-
+      ggplot(cox.coef.tmp)+
+      geom_vline(xintercept=1,linetype="dotted")+
+      geom_point(aes(x=`exp(coef)`,y=y,shape=(as.numeric(y)==1)),size=3,color="grey50")+
+      geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=y),height=0)+
+      geom_text(aes(x=1/10,y=y,
+                    label=paste0("HR=")),
+                hjust=0,vjust=-1,size=3,data=first(cox.coef.tmp))+
+      geom_text(aes(x=1/10,y=y,
+                    label=paste0(round(`exp(coef)`,2),
+                                 " [",round(`lower .95`,2),"-",
+                                 round(`upper .95`,2),"]")),
+                hjust=0,vjust=0.5,size=3,
+                data=cox.coef.tmp[-nrow(cox.coef.tmp),])+
+      geom_text(aes(x=1/10,y=y,
+                    label="Reference"),
+                hjust=0,vjust=0.5,size=3,
+                data=last(cox.coef.tmp))+
+      geom_text(aes(x=10,y=y),
+                label=paste(" p(FDR-adj) =",signif(pval.now,3)),
+                hjust=1,vjust=0.5,size=3,
+                data=last(cox.coef.tmp))+
+      xlab("Hazard Ratio")+ylab("")+
+      theme_bw()+annotation_logticks(sides="b")+
+      scale_shape_manual(values=c(15,1))+
+      facet_wrap(~Variable)+guides(shape="none")+
+      scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+      scale_x_log10()+coord_cartesian(xlim=c(0.1,10))
+    print(plt.cox.categorical.tmp)
+    ggsave(file.path(figfolder,"HLES_Cox_Details",paste0("HLES_HR_cox.",var.now,".pdf")),
+           plt.cox.categorical.tmp,height=4.5,width=6)
+  }
+}
+dev.off()
+cox.coef.num <- subset(cox.coef,(Type == "numeric"))
+cox.coef.num <- cox.coef.num[order(cox.coef.num$coef),]
+cox.coef.num <- left_join(cox.coef.num,vars.to.plot)
+cox.coef.num$Variable <- factor(cox.coef.num$Variable,
+                                levels=cox.coef.num$Variable)
+plt.cox.numeric <-
+  ggplot(cox.coef.num)+
+  geom_vline(xintercept=1,color="grey")+
+  geom_point(aes(x=`exp(coef)`,y=Variable,color=variable_group_name),shape=15,size=3)+
+  geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=Variable),height=0)+
+  geom_text(aes(x=1/3,y=Variable,
+                label=paste0("HR=")),
+            hjust=0,vjust=-1,size=2.5,data=last(cox.coef.num))+
+  geom_text(aes(x=1/3,y=Variable,
+                label=paste0(round(`exp(coef)`,2),
+                             " [",round(`lower .95`,2),"-",
+                             round(`upper .95`,2),"]")),
+            hjust=0,vjust=0.5,size=2.5,data=cox.coef.num)+
+  geom_text(aes(x=2,y=Variable,
+                label=paste0("p(FDR-adj)=")),
+            hjust=0,vjust=-1,size=2.5,data=last(cox.coef.num))+
+  geom_text(aes(x=2,y=Variable,
+                label=paste0(" ",signif(score.pval.adjust,3))),
+            hjust=0,vjust=0.5,size=2.5,data=cox.coef.num)+
+  xlab("Hazard Ratio per unit increase variable")+ylab("")+
+  scale_color_discrete("")+
+  theme_bw()+annotation_logticks(sides="b")+theme(legend.position = "bottom")+
+  scale_x_log10()+coord_cartesian(xlim=c(1/4,4))
+print(plt.cox.numeric)
+ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cox.numeric.pdf"),plt.cox.numeric,height=4,width=6)
+
+cox.coef.num.brisk.slow <-cox.coef.num[grepl("brisk",cox.coef.num$Variable) |
+                                         grepl("slow",cox.coef.num$Variable),]
+plt.cox.numeric.brisk.slow <-
+  ggplot(cox.coef.num.brisk.slow)+
+  geom_vline(xintercept=1,color="grey")+
+  geom_point(aes(x=`exp(coef)`,y=Variable),shape=15,size=3)+
+  geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=Variable),height=0)+
+  geom_text(aes(x=1/3,y=Variable,
+                label=paste0("HR=")),
+            hjust=0,vjust=-1,size=2.5,data=last(cox.coef.num.brisk.slow))+
+  geom_text(aes(x=1/3,y=Variable,
+                label=paste0(round(`exp(coef)`,2),
+                             " [",round(`lower .95`,2),"-",
+                             round(`upper .95`,2),"]")),
+            hjust=0,vjust=0.5,size=2.5,data=cox.coef.num.brisk.slow)+
+  geom_text(aes(x=2,y=Variable,
+                label=paste0("p(FDR-adj)=")),
+            hjust=0,vjust=-1,size=2.5,data=last(cox.coef.num.brisk.slow))+
+  geom_text(aes(x=2,y=Variable,
+                label=paste0(" ",signif(score.pval.adjust,3))),
+            hjust=0,vjust=0.5,size=2.5,data=cox.coef.num.brisk.slow)+
+  xlab("Hazard Ratio for pct change from 0%-100%")+ylab("")+
+  theme_bw()+annotation_logticks(sides="b")+theme(legend.position = "bottom")+
+  scale_x_log10()+coord_cartesian(xlim=c(1/4,4))+
+  facet_wrap(~variable_group_name)
+print(plt.cox.numeric.brisk.slow)
+ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cox.numeric.brisk.slow.pdf"),
+       plt.cox.numeric.brisk.slow,height=4.5,width=6)
+
+load(file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
+
+d.dendro <- as.dendrogram(d.hclusvar)
+ddata_d <- dendro_data(d.dendro)
+labs <- label(ddata_d)
+row.names(vars.to.plot) <- as.character(vars.to.plot$Variable)
+labs$group <- vars.to.plot[labs$label,"variable_group_name"]
+x<-vars.to.plot[labs$label,"score.pval.adjust"]
+labs$pvalgroup <- case_when( x < 1e-10 ~ "p < 1e-10",
+                             x >= 1e-10 & x < 1e-6 ~"1e-10 < p < 1e-6",
+                             x >= 1e-6 & x < 0.05 ~ "1e-6 < p < 0.05")
+labs$pvalgroup <- factor(labs$pvalgroup,
+                         levels=c("p < 1e-10",
+                                  "1e-10 < p < 1e-6",
+                                  "1e-6 < p < 0.05"))
+labs$fontface <- c("bold.italic","bold","plain")[as.numeric(labs$pvalgroup)]
+plt.dendro <-
+  ggplot(segment(ddata_d)) +
+  geom_segment(aes(x=x, y=y, xend=xend, yend=yend))+
+  geom_text(data=label(ddata_d),
+            aes(label=label, x=x, y=-0.1, #color=labs$group,
+                fontface=labs$fontface),
+            hjust=1,size=3,show.legend=FALSE)+
+  geom_point(data=label(ddata_d),
+             aes(x=x, y=y, color=labs$group,size=labs$pvalgroup))+
+  theme_void()+theme(legend.position="right")+ylim(-5,NA)+
+  scale_size_manual("",values=c(3,2,1))+
+  scale_color_discrete("")+
+  guides(color = guide_legend(override.aes = list(size = 2)))+
+  coord_flip()
+print(plt.dendro)
+ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cluster-var.pdf"),plt.dendro,height=8,width=8)
+
+

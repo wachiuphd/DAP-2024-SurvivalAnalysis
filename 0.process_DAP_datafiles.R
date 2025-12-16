@@ -1,6 +1,7 @@
 library(lubridate)
 library(dplyr)
 datfolder <- "data"
+survivalfile <- "survivalData_2024_12_15a.csv" # "SurvivalAnalysisCuratedDogs_2024-12-31.csv"
 # survivalData <- read.csv("survivalData_2024_12_15a.csv")
 # overviewData <- read.csv(file.path(datfolder,"DAP_2024_DogOverview_v1.0.csv"))
 # followupcols<-which(grepl("CSLB",names(overviewData)) |
@@ -24,7 +25,7 @@ datfolder <- "data"
 ## In code, dap_pack_date vs. dd_form_date
 
 survivalData <- read.csv(file.path(
-  datfolder,"SurvivalAnalysisCuratedDogs_2024-12-31.csv")) %>% 
+  datfolder,survivalfile)) %>% 
   rename(dog_id=study_id) %>% left_join(
     read.csv(file.path(datfolder,"DAP_2024_DogOverview_v1.0.csv"))) 
 datecols <- which((grepl("date",names(survivalData),ignore.case = TRUE) |
@@ -79,12 +80,16 @@ survivalData$Breed_Size_Class_at_HLES <- factor(survivalData$Breed_Size_Class_at
                                                     "Toy and Small non-AKC and mixed breed dogs"
                                                   ))
 
-
+if ("Estimated_DOB" %in% names(survivalData)) {
+  survivalData <- rename(survivalData,st_estimated_dob=Estimated_DOB)
+}
 # Should be able to use "baseline_age" for first.age
 survivalData$first.age <- time_length(interval(survivalData$st_estimated_dob,survivalData$dap_pack_date),"years")
 # Should be able to use "survival_age" for last.age
 survivalData$last.age <- time_length(interval(survivalData$st_estimated_dob,survivalData$survival_date),"years")
 survivalData$event <- as.numeric(survivalData$survival_status=="Dead")
+
+survivalData <- subset(survivalData,last.age > first.age)
 
 save(survivalData,file=file.path(datfolder,"SurvivalData.RData"))
 write.csv(survivalData,file.path(datfolder,"SurvivalData.csv"),row.names = FALSE)
