@@ -105,7 +105,7 @@ for (j in 1:nrow(pvals)) {
   data.tmp <- left_join(survivalData,d[,c("dog_id",var.now)])
   names(data.tmp)[ncol(data.tmp)]<-"x"
   set.seed(3.14159)
-  data.tmp$xrand <- data.tmp$x
+  data.tmp$xrand <- sample(data.tmp$x)
   pvals$Type[j] <- class(data.tmp$x)
   try( {
     remove(cox.tmp); # clean up
