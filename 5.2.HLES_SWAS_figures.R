@@ -59,7 +59,7 @@ for (j in 1:nrow(vars.to.plot)) {
     cox.coef.tmp[n,c("coef","exp(coef)","se(coef)","z","Pr(>|z|)",
                      "exp(-coef)","lower .95","upper .95")]<-
       c(0,1,0,0,1,1,1,1)
-    var.lab <- str_wrap(cox.coef.tmp$SurveyText,width=70)
+    var.lab <- paste0(cox.coef.tmp$Variable,"\n",str_wrap(cox.coef.tmp$SurveyText,width=70))
     names(var.lab) <- cox.coef.tmp$Variable
     plt.cox.categorical.tmp <-
       ggplot(cox.coef.tmp)+

@@ -1,11 +1,11 @@
 "Size_Class_at_HLES","Breed_Class","log.rank.pvalue"
-"Giant dogs","Non-AKC-Recognized or Mixed Breed",0.908036093239028
-"Giant dogs","AKC-Recognized Breed",0.67719454567529
-"Large dogs","Non-AKC-Recognized or Mixed Breed",0.172418239116772
-"Large dogs","AKC-Recognized Breed",0.351598759201087
-"Standard dogs","Non-AKC-Recognized or Mixed Breed",0.652647501956473
-"Standard dogs","AKC-Recognized Breed",0.00594090296659969
-"Medium dogs","Non-AKC-Recognized or Mixed Breed",0.431337560998142
-"Medium dogs","AKC-Recognized Breed",3.40067687849886e-05
-"Toy and Small dogs","Non-AKC-Recognized or Mixed Breed",0.549545249315082
-"Toy and Small dogs","AKC-Recognized Breed",0.00192663816859351
+"Giant dogs","Non-AKC-Recognized or Mixed Breed",0.825554047182409
+"Giant dogs","AKC-Recognized Breed",0.970526634716249
+"Large dogs","Non-AKC-Recognized or Mixed Breed",0.697112004043778
+"Large dogs","AKC-Recognized Breed",0.517856993442958
+"Standard dogs","Non-AKC-Recognized or Mixed Breed",0.5615942615502
+"Standard dogs","AKC-Recognized Breed",0.0204629612482488
+"Medium dogs","Non-AKC-Recognized or Mixed Breed",0.376841863311303
+"Medium dogs","AKC-Recognized Breed",2.14928106901731e-05
+"Toy and Small dogs","Non-AKC-Recognized or Mixed Breed",0.93065730228692
+"Toy and Small dogs","AKC-Recognized Breed",0.00162882469106182

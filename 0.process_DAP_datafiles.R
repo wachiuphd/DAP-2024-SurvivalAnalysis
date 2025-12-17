@@ -59,7 +59,8 @@ survivalData$Breed_Size_Class_at_HLES <- factor(survivalData$Breed_Size_Class_at
                                                     "Toy and Small non-AKC and mixed breed dogs"
                                                   ))
 
-if ("Estimated_DOB" %in% names(survivalData)) {
+if ("Estimated_DOB" %in% names(survivalData) & 
+    (!("st_estimated_dob" %in% names(survivalData)))) {
   survivalData <- rename(survivalData,st_estimated_dob=Estimated_DOB)
 }
 # Should be able to use "baseline_age" for first.age

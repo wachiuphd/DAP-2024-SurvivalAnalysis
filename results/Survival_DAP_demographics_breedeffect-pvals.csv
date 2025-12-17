@@ -1,11 +1,11 @@
 "Size_Class_at_HLES","Sex","log.rank.pvalue"
-"Giant dogs","Female",0.000273109914300918
-"Giant dogs","Male",0.00111916038727851
-"Large dogs","Female",9.29155012558503e-05
-"Large dogs","Male",0.000314010343540535
-"Standard dogs","Female",0.276751529247382
-"Standard dogs","Male",9.98037081078432e-05
-"Medium dogs","Female",0.00138017663234895
-"Medium dogs","Male",9.74068603414025e-10
-"Toy and Small dogs","Female",0.0188893045570755
-"Toy and Small dogs","Male",2.51013012630542e-12
+"Giant dogs","Female",0.00181191995869642
+"Giant dogs","Male",0.00048316928773413
+"Large dogs","Female",0.000341440079295033
+"Large dogs","Male",0.00022604356417849
+"Standard dogs","Female",0.222385004561801
+"Standard dogs","Male",0.000644809754431198
+"Medium dogs","Female",0.00585466548363909
+"Medium dogs","Male",2.49219251104053e-08
+"Toy and Small dogs","Female",0.00478524041882776
+"Toy and Small dogs","Male",3.36718385750153e-13
