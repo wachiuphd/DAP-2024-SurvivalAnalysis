@@ -54,7 +54,7 @@ vars.to.keep$make.factor[str_detect(vars.to.keep$SurveyText,"How many|how many")
                            vars.to.keep$num.values > 3] <- FALSE
 write.csv(vars.to.keep,file.path(resultsfolder,"Supp.HLES_Cox-variables.csv"),row.names = FALSE)
 
-###### Join with survival data
+###### Extract variables from HLES ### 
 load(file.path(datfolder,"DAP_2024_HLES_dog_owner_v1.0.RData"))
 names(HLES_dog_owner)[names(HLES_dog_owner)=="ss_household_dog_count"] <- 
   "od_household_dog_count" # Make part of owner demographics
@@ -89,7 +89,6 @@ for (j in 1:ncol(d)) {
 }
 d <- cbind(data.frame(dog_id=HLES_dog_owner$dog_id),d)
 d <- subset(d, dog_id %in% survivalData$dog_id)
-survivalData <- subset(survivalData, dog_id %in% d$dog_id)
 surv <- Surv(time=survivalData$first.age,
              time2=survivalData$last.age,
              event=survivalData$event,
@@ -100,12 +99,13 @@ remove(HLES_dog_owner)
 pvals <- cbind(vars.to.keep,
                data.frame(Type=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
 for (j in 1:nrow(pvals)) {
-  var.now <- vars.to.keep$Variable[j]
+  var.now <- as.character(vars.to.keep$Variable[j])
   print(paste(j,var.now,"----------"))
-  data.tmp <- survivalData
-  data.tmp$x <- d[,var.now]
+  # Join with survival data
+  data.tmp <- left_join(survivalData,d[,c("dog_id",var.now)])
+  names(data.tmp)[ncol(data.tmp)]<-"x"
   set.seed(3.14159)
-  data.tmp$xrand <- sample(d[,var.now])
+  data.tmp$xrand <- data.tmp$x
   pvals$Type[j] <- class(data.tmp$x)
   try( {
     remove(cox.tmp); # clean up
@@ -145,11 +145,11 @@ vars.to.plot <- subset(pvals, score.pval.adjust < 0.05)
 vars.to.plot <- vars.to.plot[order(vars.to.plot$score.pval.adjust),]
 cox.coef <- data.frame()
 for (j in 1:nrow(vars.to.plot)) {
-  var.now <- vars.to.plot$Variable[j]
+  var.now <- as.character(vars.to.plot$Variable[j])
   type.now <- vars.to.plot$Type[j]
   print(paste(j,type.now,var.now,"----------"))
-  data.tmp <- survivalData
-  data.tmp$x <- d[,as.character(var.now)]
+  data.tmp <- left_join(survivalData,d[,c("dog_id",var.now)])
+  names(data.tmp)[ncol(data.tmp)]<-"x"
   cox.tmp <- coxph(surv ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
                    data=data.tmp);
   cox.tmp.sum <- summary(cox.tmp)

@@ -2,6 +2,7 @@ library(ClustOfVar)
 library(ggdendro)
 library(ggplot2)
 library(tidyverse)
+library(stringr)
 figfolder <- "Figures"
 resultsfolder <- "Results"
 load(file.path(resultsfolder,"Supp.HLES_Cox.Rdata"))
@@ -37,7 +38,7 @@ ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_Manh.pdf"),plt.man.hles,heig
 ## Plots of categorical variables
 pdf(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cox.categorical.pdf"),height=4.5,width=6)
 for (j in 1:nrow(vars.to.plot)) {
-  var.now <- vars.to.plot$Variable[j]
+  var.now <- as.character(vars.to.plot$Variable[j])
   pval.now <- vars.to.plot$score.pval.adjust[j]
   cox.coef.tmp <- subset(cox.coef,Variable == var.now)
   if (cox.coef.tmp$Type[1] == "factor") {
@@ -58,6 +59,8 @@ for (j in 1:nrow(vars.to.plot)) {
     cox.coef.tmp[n,c("coef","exp(coef)","se(coef)","z","Pr(>|z|)",
                      "exp(-coef)","lower .95","upper .95")]<-
       c(0,1,0,0,1,1,1,1)
+    var.lab <- str_wrap(cox.coef.tmp$SurveyText,width=70)
+    names(var.lab) <- cox.coef.tmp$Variable
     plt.cox.categorical.tmp <-
       ggplot(cox.coef.tmp)+
       geom_vline(xintercept=1,linetype="dotted")+
@@ -83,8 +86,8 @@ for (j in 1:nrow(vars.to.plot)) {
       xlab("Hazard Ratio")+ylab("")+
       theme_bw()+annotation_logticks(sides="b")+
       scale_shape_manual(values=c(15,1))+
-      facet_wrap(~Variable)+guides(shape="none")+
-      scale_y_discrete(labels = function(x) str_wrap(x, width = 25))+
+      facet_wrap(~Variable,labeller = labeller(Variable = var.lab))+guides(shape="none")+
+      scale_y_discrete(labels = function(x) str_wrap(x, width = 25),limits=rev)+
       scale_x_log10()+coord_cartesian(xlim=c(0.1,10))
     print(plt.cox.categorical.tmp)
     ggsave(file.path(figfolder,"HLES_Cox_Details",paste0("HLES_HR_cox.",var.now,".pdf")),

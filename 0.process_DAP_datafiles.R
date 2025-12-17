@@ -1,28 +1,7 @@
 library(lubridate)
 library(dplyr)
 datfolder <- "data"
-survivalfile <- "survivalData_2024_12_15a.csv" # "SurvivalAnalysisCuratedDogs_2024-12-31.csv"
-# survivalData <- read.csv("survivalData_2024_12_15a.csv")
-# overviewData <- read.csv(file.path(datfolder,"DAP_2024_DogOverview_v1.0.csv"))
-# followupcols<-which(grepl("CSLB",names(overviewData)) |
-#   grepl("AFUS",names(overviewData)) |
-#   grepl("CognitiveGames",names(overviewData)) |
-#   grepl("Morphometrics",names(overviewData)) |
-#   grepl("DNA",names(overviewData)))
-# overviewData.withfollowup <- data.frame(overviewData[,c("dog_id","Status")],
-#                            has_followup = grepl("Y",apply(overviewData[,followupcols],1,paste0,collapse=""),
-#                                                  ignore.case = TRUE))
-# missing_ids <- setdiff(
-#   subset(overviewData.withfollowup,Status=="Alive" & has_followup)$dog_id,
-#   subset(survivalData,survival_status=="Alive")$dog_id
-#   )
-# 
-## All survivalData in overviewData
-## All alive in survivalData have follow-up in overviewData 
-## All 
-
-
-## In code, dap_pack_date vs. dd_form_date
+survivalfile <- "SurvivalAnalysisCuratedDogs_2024-12-31.csv" # "survivalData_2024_12_15a.csv" 
 
 survivalData <- read.csv(file.path(
   datfolder,survivalfile)) %>% 
@@ -94,25 +73,4 @@ survivalData <- subset(survivalData,last.age > first.age)
 save(survivalData,file=file.path(datfolder,"SurvivalData.RData"))
 write.csv(survivalData,file.path(datfolder,"SurvivalData.csv"),row.names = FALSE)
 
-# 
-# level.list <- list()
-# level.list[[1]] <- c("Rural","Suburban","Urban")
-# survivalData$home_area <- factor(
-#   c("Urban","Suburban","Rural")[survivalData$de_home_area_type],
-#   levels=level.list[[1]])
-# level.list[[2]] <- c("New England","Middle Atlantic",
-#                      "East North Central","West North Central",
-#                      "South Atlantic","East South Central","West South Central",
-#                      "Mountain","Pacific")
-# survivalData$census_division <- factor( 
-#   c("New England","Middle Atlantic",
-#     "East North Central","West North Central",
-#     "South Atlantic","East South Central","West South Central",
-#     "Mountain","Pacific")[
-#       survivalData$oc_primary_residence_census_division],
-#   levels<-level.list[[2]])
-# level.list[[3]] <- sort(unique(survivalData$oc_primary_residence_state))
-# survivalData$state <- factor(
-#   survivalData$oc_primary_residence_state,
-#   levels=level.list[[3]])
 
