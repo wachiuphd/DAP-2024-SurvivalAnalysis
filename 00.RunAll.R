@@ -1,3 +1,4 @@
+rm(list = ls())
 source("0.process_DAP_datafiles.R")
 rm(list = ls())
 source("1.Cohort_Descriptive_Stats.R")

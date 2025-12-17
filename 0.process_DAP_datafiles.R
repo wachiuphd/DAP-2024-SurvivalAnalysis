@@ -1,7 +1,7 @@
 library(lubridate)
 library(dplyr)
 datfolder <- "data"
-survivalfile <- "SurvivalAnalysisCuratedDogs_2024-12-31.csv" # "survivalData_2024_12_15a.csv" 
+survivalfile <- "SurvivalAnalysisCuratedDogs_thru_2024_ran_2025_12_16.csv" # "survivalData_2024_12_15a.csv"
 
 survivalData <- read.csv(file.path(
   datfolder,survivalfile)) %>% 
@@ -63,9 +63,9 @@ if ("Estimated_DOB" %in% names(survivalData) &
     (!("st_estimated_dob" %in% names(survivalData)))) {
   survivalData <- rename(survivalData,st_estimated_dob=Estimated_DOB)
 }
-# Should be able to use "baseline_age" for first.age
+# "estimated_baseline_age" is a rounded version of first.age
 survivalData$first.age <- time_length(interval(survivalData$st_estimated_dob,survivalData$dap_pack_date),"years")
-# Should be able to use "survival_age" for last.age
+# "estimated_survival_age" is a rounded version of last.age
 survivalData$last.age <- time_length(interval(survivalData$st_estimated_dob,survivalData$survival_date),"years")
 survivalData$event <- as.numeric(survivalData$survival_status=="Dead")
 

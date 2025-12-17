@@ -69,12 +69,9 @@ plt.b.km.s<-ggsurvplot_facet(fit.b.s,data=survivalData,
                              surv.median.line = "hv",short.panel.labs=TRUE
                              )+scale_color_viridis_d(end=0.8)+
   geom_text(aes(x=20,y=0.75,label=paste0("p=",signif(log.rank.pvalue,2))),
-            data=cox.b.s.pvalues,hjust=0)
+            data=cox.b.s.pvalues,hjust=0)+theme(legend.position = "bottom")
 
 print(plt.b.km.s)
-ggsave(file.path(figfolder,"Fig.1.Survival_DAP_demographics.KM.pdf"),
-       plt.b.km.s,
-       height=4.5,width=6,scale=1.2)
 
 ######
 
@@ -161,7 +158,7 @@ plt.forest.median.b.s<-ggplot(fit.b.s.sum.df)+
   geom_point(aes(x=q25,y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES,shape="IQR"))+
   geom_point(aes(x=q75,y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES,shape="IQR"))+
   xlab("Median & IQR lifespan [CI]")+
-  scale_shape_discrete("",limits=rev)+scale_color_viridis_d(end=0.8)+
+  scale_shape_discrete("",limits=rev)+scale_color_viridis_d(end=0.8,limits=rev)+
   guides(color="none")+theme_bw()+theme(legend.position="bottom")+
   coord_cartesian(xlim=c(5,20))+scale_y_discrete(limits=rev)+
   facet_wrap(~Size_Class_at_HLES ,ncol=1)
@@ -172,13 +169,15 @@ plt.forest.mean.b.s<-ggplot(fit.b.s.sum.df)+
                      xmax=rmean+1.96*`se(rmean)`,
                      y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES),height=0)+
   geom_point(aes(x=rmean,y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES))+
-  xlab("Mean lifespan [CI]")+scale_color_viridis_d(end=0.8)+
+  xlab("Mean lifespan [CI]")+scale_color_viridis_d(end=0.8,limits=rev)+
   guides(color="none")+theme_bw()+
   coord_cartesian(xlim=c(5,20))+scale_y_discrete(limits=rev)+
   facet_wrap(~Size_Class_at_HLES ,ncol=1)
 print(plt.forest.mean.b.s)
 
-ggsave(file.path(figfolder,"Supp.Fig.Survival_DAP_demographics.forest.median.IQR.pdf"),
-       plt.forest.median.b.s)
+
+ggsave(file.path(figfolder,"Fig.1.Survival_DAP_demographics.KM.forest.pdf"),
+       ggarrange(plt.b.km.s,plt.forest.median.b.s,ncol=1,labels = "AUTO"),
+       height=7,width=6,scale=1.3)
 ggsave(file.path(figfolder,"Supp.Fig.Survival_DAP_demographics.forest.mean.pdf"),
        plt.forest.mean.b.s)
