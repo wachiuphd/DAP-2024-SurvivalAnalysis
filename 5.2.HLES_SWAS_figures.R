@@ -180,9 +180,9 @@ plt.cox.numeric.brisk.slow <-
   #               label=paste0("HR=")),
   #           hjust=0,vjust=-1,size=3,data=last(cox.coef.num.brisk.slow))+
   geom_text(aes(x=1/4,y=SurveyText,
-                label=paste0(round(`exp(coef)`,3),
-                             " [",round(`lower .95`,3),"-",
-                             round(`upper .95`,3),"]")),
+                label=paste0(round(`exp(coef)`,2),
+                             " [",round(`lower .95`,2),"-",
+                             round(`upper .95`,2),"]")),
             hjust=0,vjust=0.5,size=3,data=cox.coef.num.brisk.slow)+
   geom_text(aes(x=3,y=SurveyText,
                 label=paste0("p(FDR-adj)=")),

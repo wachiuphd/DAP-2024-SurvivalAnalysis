@@ -44,6 +44,11 @@ for (j in 1:n.strata) {
   gamma.df[j,2:4]<-c(coef(fit)["b"],confint(fit)["b",])
 }
 
+# Convert to fraction of lifespan
+gamma.frac.df <- gamma.df
+gamma.frac.df[,2:4] <- gamma.df[,2:4]*fit.b.s.quant$quantile[,"50"]
+
+
 HR.interp <- gamma.df
 HR.interp$delta.0.5yr <- exp(0.5*gamma.df$gamma)
 HR.interp$delta.1.0yr <- exp(1*gamma.df$gamma)

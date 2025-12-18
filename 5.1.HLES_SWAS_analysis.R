@@ -176,6 +176,91 @@ d.quali<-d[,as.character(subset(vars.to.plot,make.factor)$Variable)]
 d.hclusvar<-hclustvar(d.quant,d.quali)
 save(d.hclusvar,file=file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
 
+###### Sensitivity analysis - Mature Adult LifeStage only
+
+survivalData.MAdult <- subset(survivalData,LifeStage_Class_at_HLES == "Mature Adult")
+
+## Survival for Mature Adult LifeStage only
+surv.MAdult <- Surv(time=survivalData.MAdult$first.age,
+                    time2=survivalData.MAdult$last.age,
+                    event=survivalData.MAdult$event, 
+                    type="counting")
+
+## Cox modeling for each variable
+pvals.MAdult <- cbind(vars.to.keep,
+                      data.frame(Type=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
+for (j in 1:nrow(pvals.MAdult)) {
+  var.now <- as.character(vars.to.keep$Variable[j])
+  print(paste(j,var.now,"----------"))
+  # Join with survival data
+  data.tmp <- left_join(survivalData.MAdult,d[,c("dog_id",var.now)])
+  names(data.tmp)[ncol(data.tmp)]<-"x"
+  set.seed(3.14159)
+  data.tmp$xrand <- sample(data.tmp$x)
+  pvals.MAdult$Type[j] <- class(data.tmp$x)
+  try( {
+    remove(cox.tmp); # clean up
+    cox.tmp <- coxph(surv.MAdult ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
+                     data=data.tmp);
+    pvals.MAdult$score.pval[j] <- summary(cox.tmp)$sctest["pvalue"];
+    if (pvals.MAdult$score.pval[j] < 1) {
+      pvals.MAdult$zph.pval[j] <- cox.zph(cox.tmp)$table["x","p"]
+    }
+    remove(cox.tmp.xrand); # clean up
+    cox.tmp.xrand <- coxph(surv.MAdult ~ xrand + strata(Size_Class_at_HLES,Breed_Class,Sex),
+                           data=data.tmp);
+    pvals.MAdult$score.pval.xrand[j] <- summary(cox.tmp.xrand)$sctest["pvalue"];
+  }
+  )
+}
+
+# Use p.adjust to do FDR using BY approach due to potential dependency
+
+pvals.MAdult$Variable <- factor(pvals.MAdult$Variable,levels=pvals.MAdult$Variable)
+
+pvals.MAdult$score.pval.adjust <- p.adjust(pvals.MAdult$score.pval,method="BY")
+
+# No false discoveries
+pvals.MAdult$score.pval.xrand.adjust <- p.adjust(pvals.MAdult$score.pval.xrand,method="BY")
+pvals.MAdult$zph.pval.adjust <- p.adjust(pvals.MAdult$zph.pval,method="BY")
+
+write.csv(pvals.MAdult,file.path(resultsfolder,"Supp.HLES_Cox_pvals.MAdult.csv"))
+
+variable_group_tab <- table(pvals.MAdult$variable_group_name)
+variable_group_tab.df <- data.frame(xmin=1+c(0,as.numeric(cumsum(variable_group_tab)[-length(variable_group_tab)])),
+                                    xmax=as.numeric(cumsum(variable_group_tab)),
+                                    xmid=as.numeric(cumsum(variable_group_tab)-variable_group_tab/2),
+                                    variable_group_name=unique(pvals.MAdult$variable_group_name))
+
+vars.to.plot.MAdult <- subset(pvals.MAdult, score.pval.adjust < 0.05)
+vars.to.plot.MAdult <- vars.to.plot.MAdult[order(vars.to.plot.MAdult$score.pval.adjust),]
+cox.coef.MAdult <- data.frame()
+for (j in 1:nrow(vars.to.plot.MAdult)) {
+  var.now <- as.character(vars.to.plot.MAdult$Variable[j])
+  type.now <- vars.to.plot.MAdult$Type[j]
+  print(paste(j,type.now,var.now,"----------"))
+  data.tmp <- left_join(survivalData.MAdult,d[,c("dog_id",var.now)])
+  names(data.tmp)[ncol(data.tmp)]<-"x"
+  cox.tmp <- coxph(surv.MAdult ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
+                   data=data.tmp);
+  cox.tmp.sum <- summary(cox.tmp)
+  cox.coef.tmp <- cbind(data.frame(Variable=var.now,Type=type.now,y=rownames(cox.tmp.sum$coefficients)),
+                        cbind(as.data.frame(cox.tmp.sum$coefficients),as.data.frame(cox.tmp.sum$conf.int)))
+  cox.coef.MAdult <- rbind(cox.coef.MAdult,cox.coef.tmp[,!duplicated(names(cox.coef.tmp))])
+}
+
+cox.coef.MAdult$Variable.y <- paste(cox.coef.MAdult$Variable,cox.coef.MAdult$y,sep="|")
+cox.coef.MAdult$Variable.y <- gsub("\\|x","\\|",cox.coef.MAdult$Variable.y)
+cox.coef.MAdult$Variable.y[!(cox.coef.MAdult$Type %in% c("factor","character"))] <- 
+  gsub("\\|","",cox.coef.MAdult$Variable.y[!(cox.coef.MAdult$Type %in% c("factor","character"))])
+cox.coef.MAdult <- cox.coef.MAdult[order(cox.coef.MAdult$Variable.y),]
+cox.coef.MAdult <- left_join(cox.coef.MAdult,pvals.MAdult)
+write.csv(cox.coef.MAdult,file.path(resultsfolder,"Supp.HLES_Cox_signif_results.MAdult.csv"))
+
+save(cox.coef.MAdult,vars.to.keep,vars.to.plot.MAdult,d,pvals.MAdult,vargroups,variable_group_tab,
+     variable_group_tab.df,
+     file=file.path(resultsfolder,"Supp.HLES_Cox.MAdult.Rdata"))
+
 ###### Sensitivity analysis - top16breeds
 
 top16breeds <-head(sort(table(subset(survivalData,
@@ -269,88 +354,4 @@ save(cox.coef.top16,vars.to.keep,vars.to.plot.top16,d,pvals.top16,vargroups,vari
      file=file.path(resultsfolder,"Supp.HLES_Cox.top16.Rdata"))
 
 
-###### Sensitivity analysis - Mature Adult LifeStage only
-
-survivalData.MAdult <- subset(survivalData,LifeStage_Class_at_HLES == "Mature Adult")
-
-## Survival for 16 Individual Breeds
-surv.MAdult <- Surv(time=survivalData.MAdult$first.age,
-                   time2=survivalData.MAdult$last.age,
-                   event=survivalData.MAdult$event, 
-                   type="counting")
-
-## Cox modeling for each variable
-pvals.MAdult <- cbind(vars.to.keep,
-                     data.frame(Type=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
-for (j in 1:nrow(pvals.MAdult)) {
-  var.now <- as.character(vars.to.keep$Variable[j])
-  print(paste(j,var.now,"----------"))
-  # Join with survival data
-  data.tmp <- left_join(survivalData.MAdult,d[,c("dog_id",var.now)])
-  names(data.tmp)[ncol(data.tmp)]<-"x"
-  set.seed(3.14159)
-  data.tmp$xrand <- sample(data.tmp$x)
-  pvals.MAdult$Type[j] <- class(data.tmp$x)
-  try( {
-    remove(cox.tmp); # clean up
-    cox.tmp <- coxph(surv.MAdult ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
-                     data=data.tmp);
-    pvals.MAdult$score.pval[j] <- summary(cox.tmp)$sctest["pvalue"];
-    if (pvals.MAdult$score.pval[j] < 1) {
-      pvals.MAdult$zph.pval[j] <- cox.zph(cox.tmp)$table["x","p"]
-    }
-    remove(cox.tmp.xrand); # clean up
-    cox.tmp.xrand <- coxph(surv.MAdult ~ xrand + strata(Size_Class_at_HLES,Breed_Class,Sex),
-                           data=data.tmp);
-    pvals.MAdult$score.pval.xrand[j] <- summary(cox.tmp.xrand)$sctest["pvalue"];
-  }
-  )
-}
-
-# Use p.adjust to do FDR using BY approach due to potential dependency
-
-pvals.MAdult$Variable <- factor(pvals.MAdult$Variable,levels=pvals.MAdult$Variable)
-
-pvals.MAdult$score.pval.adjust <- p.adjust(pvals.MAdult$score.pval,method="BY")
-
-# No false discoveries
-pvals.MAdult$score.pval.xrand.adjust <- p.adjust(pvals.MAdult$score.pval.xrand,method="BY")
-pvals.MAdult$zph.pval.adjust <- p.adjust(pvals.MAdult$zph.pval,method="BY")
-
-write.csv(pvals.MAdult,file.path(resultsfolder,"Supp.HLES_Cox_pvals.MAdult.csv"))
-
-variable_group_tab <- table(pvals.MAdult$variable_group_name)
-variable_group_tab.df <- data.frame(xmin=1+c(0,as.numeric(cumsum(variable_group_tab)[-length(variable_group_tab)])),
-                                    xmax=as.numeric(cumsum(variable_group_tab)),
-                                    xmid=as.numeric(cumsum(variable_group_tab)-variable_group_tab/2),
-                                    variable_group_name=unique(pvals.MAdult$variable_group_name))
-
-vars.to.plot.MAdult <- subset(pvals.MAdult, score.pval.adjust < 0.05)
-vars.to.plot.MAdult <- vars.to.plot.MAdult[order(vars.to.plot.MAdult$score.pval.adjust),]
-cox.coef.MAdult <- data.frame()
-for (j in 1:nrow(vars.to.plot.MAdult)) {
-  var.now <- as.character(vars.to.plot.MAdult$Variable[j])
-  type.now <- vars.to.plot.MAdult$Type[j]
-  print(paste(j,type.now,var.now,"----------"))
-  data.tmp <- left_join(survivalData.MAdult,d[,c("dog_id",var.now)])
-  names(data.tmp)[ncol(data.tmp)]<-"x"
-  cox.tmp <- coxph(surv.MAdult ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
-                   data=data.tmp);
-  cox.tmp.sum <- summary(cox.tmp)
-  cox.coef.tmp <- cbind(data.frame(Variable=var.now,Type=type.now,y=rownames(cox.tmp.sum$coefficients)),
-                        cbind(as.data.frame(cox.tmp.sum$coefficients),as.data.frame(cox.tmp.sum$conf.int)))
-  cox.coef.MAdult <- rbind(cox.coef.MAdult,cox.coef.tmp[,!duplicated(names(cox.coef.tmp))])
-}
-
-cox.coef.MAdult$Variable.y <- paste(cox.coef.MAdult$Variable,cox.coef.MAdult$y,sep="|")
-cox.coef.MAdult$Variable.y <- gsub("\\|x","\\|",cox.coef.MAdult$Variable.y)
-cox.coef.MAdult$Variable.y[!(cox.coef.MAdult$Type %in% c("factor","character"))] <- 
-  gsub("\\|","",cox.coef.MAdult$Variable.y[!(cox.coef.MAdult$Type %in% c("factor","character"))])
-cox.coef.MAdult <- cox.coef.MAdult[order(cox.coef.MAdult$Variable.y),]
-cox.coef.MAdult <- left_join(cox.coef.MAdult,pvals.MAdult)
-write.csv(cox.coef.MAdult,file.path(resultsfolder,"Supp.HLES_Cox_signif_results.MAdult.csv"))
-
-save(cox.coef.MAdult,vars.to.keep,vars.to.plot.MAdult,d,pvals.MAdult,vargroups,variable_group_tab,
-     variable_group_tab.df,
-     file=file.path(resultsfolder,"Supp.HLES_Cox.MAdult.Rdata"))
 
