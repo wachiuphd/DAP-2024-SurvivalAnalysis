@@ -175,3 +175,95 @@ d.quant<-d[,as.character(subset(vars.to.plot,!make.factor)$Variable)]
 d.quali<-d[,as.character(subset(vars.to.plot,make.factor)$Variable)]
 d.hclusvar<-hclustvar(d.quant,d.quali)
 save(d.hclusvar,file=file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
+
+###### Sensitivity analysis - top16breeds
+
+top16breeds <-head(sort(table(subset(survivalData,
+                                     Breed_Class=="AKC-Recognized Breed")$Breed),
+                        decreasing = TRUE),16)
+survivalData.top16 <- subset(survivalData,Breed_Class=="AKC-Recognized Breed" & 
+                               Breed %in% names(top16breeds))
+survivalData.top16$Breed <- factor(survivalData.top16$Breed,
+                                   levels=names(top16breeds))
+print(top16breeds)
+
+## Summary Statistics for 16 Individual Breeds
+surv.top16 <- Surv(time=survivalData.top16$first.age,
+                   time2=survivalData.top16$last.age,
+                   event=survivalData.top16$event, 
+                   type="counting")
+
+## Cox modeling for each variable
+pvals.top16 <- cbind(vars.to.keep,
+               data.frame(Type=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
+for (j in 1:nrow(pvals.top16)) {
+  var.now <- as.character(vars.to.keep$Variable[j])
+  print(paste(j,var.now,"----------"))
+  # Join with survival data
+  data.tmp <- left_join(survivalData.top16,d[,c("dog_id",var.now)])
+  names(data.tmp)[ncol(data.tmp)]<-"x"
+  set.seed(3.14159)
+  data.tmp$xrand <- sample(data.tmp$x)
+  pvals.top16$Type[j] <- class(data.tmp$x)
+  try( {
+    remove(cox.tmp); # clean up
+    cox.tmp <- coxph(surv ~ x + strata(Breed,Sex),
+                     data=data.tmp);
+    pvals$score.pval[j] <- summary(cox.tmp)$sctest["pvalue"];
+    if (pvals$score.pval[j] < 1) {
+      pvals$zph.pval[j] <- cox.zph(cox.tmp)$table["x","p"]
+    }
+    remove(cox.tmp.xrand); # clean up
+    cox.tmp.xrand <- coxph(surv ~ xrand + strata(Breed,Sex),
+                           data=data.tmp);
+    pvals.top16$score.pval.xrand[j] <- summary(cox.tmp.xrand)$sctest["pvalue"];
+  }
+  )
+}
+
+# Use p.adjust to do FDR using BY approach due to potential dependency
+
+pvals.top16$Variable <- factor(pvals.top16$Variable,levels=pvals.top16$Variable)
+
+pvals.top16$score.pval.adjust <- p.adjust(pvals.top16$score.pval,method="BY")
+
+# Randomized adjusted p-values are all = 1
+pvals.top16$score.pval.xrand.adjust <- p.adjust(pvals.top16$score.pval.xrand,method="BY")
+pvals.top16$zph.pval.adjust <- p.adjust(pvals.top16$zph.pval,method="BY")
+
+write.csv(pvals.top16,file.path(resultsfolder,"Supp.HLES_Cox_pvals.top16.csv"))
+
+variable_group_tab <- table(pvals.top16$variable_group_name)
+variable_group_tab.df <- data.frame(xmin=1+c(0,as.numeric(cumsum(variable_group_tab)[-length(variable_group_tab)])),
+                                    xmax=as.numeric(cumsum(variable_group_tab)),
+                                    xmid=as.numeric(cumsum(variable_group_tab)-variable_group_tab/2),
+                                    variable_group_name=unique(pvals$variable_group_name))
+
+vars.to.plot.top16 <- subset(pvals.top16, score.pval.adjust < 0.05)
+vars.to.plot.top16 <- vars.to.plot[order(vars.to.plot.top16$score.pval.adjust),]
+cox.coef.top16 <- data.frame()
+for (j in 1:nrow(vars.to.plot.top16)) {
+  var.now <- as.character(vars.to.plot.top16$Variable[j])
+  type.now <- vars.to.plot.top16$Type[j]
+  print(paste(j,type.now,var.now,"----------"))
+  data.tmp <- left_join(survivalData.top16,d[,c("dog_id",var.now)])
+  names(data.tmp)[ncol(data.tmp)]<-"x"
+  cox.tmp <- coxph(surv ~ x + strata(Breed,Sex),
+                   data=data.tmp);
+  cox.tmp.sum <- summary(cox.tmp)
+  cox.coef.tmp <- cbind(data.frame(Variable=var.now,Type=type.now,y=rownames(cox.tmp.sum$coefficients)),
+                        cbind(as.data.frame(cox.tmp.sum$coefficients),as.data.frame(cox.tmp.sum$conf.int)))
+  cox.coef.top16 <- rbind(cox.coef.top16,cox.coef.tmp[,!duplicated(names(cox.coef.tmp))])
+}
+
+cox.coef.top16$Variable.y <- paste(cox.coef.top16$Variable,cox.coef.top16$y,sep="|")
+cox.coef.top16$Variable.y <- gsub("\\|x","\\|",cox.coef.top16$Variable.y)
+cox.coef.top16$Variable.y[!(cox.coef.top16$Type %in% c("factor","character"))] <- 
+  gsub("\\|","",cox.coef.top16$Variable.y[!(cox.coef.top16$Type %in% c("factor","character"))])
+cox.coef.top16 <- cox.coef[order(cox.coef.top16$Variable.y),]
+cox.coef.top16 <- left_join(cox.coef.top16,pvals.top16)
+write.csv(cox.coef.top16,file.path(resultsfolder,"Supp.HLES_Cox_signif_results.top16.csv"))
+
+save(cox.coef.top16,vars.to.keep,vars.to.plot.top16,d,pvals.top16,vargroups,variable_group_tab,
+     variable_group_tab.df,
+     file=file.path(resultsfolder,"Supp.HLES_Cox.top16.Rdata"))
