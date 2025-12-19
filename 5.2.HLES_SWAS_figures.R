@@ -8,6 +8,18 @@ figfolder <- "Figures"
 resultsfolder <- "Results"
 load(file.path(resultsfolder,"Supp.HLES_Cox.Rdata"))
 
+
+## Table 4
+cox.coef$abs.coef <- abs(cox.coef$coef)
+cox.coef.maxeffect <- aggregate(abs.coef ~ Variable,data=cox.coef,FUN=max)
+cox.coef.maxeffect <- left_join(cox.coef.maxeffect,cox.coef)
+cox.coef.maxeffect <- cox.coef.maxeffect[order(
+  cox.coef.maxeffect$score.pval.adjust),]
+
+
+write.csv(cox.coef.maxeffect,
+          file.path(resultsfolder,"Supp.HLES_Cox_maxeffects.csv"))
+
 ## Manhattan plot
 
 ymax <- max(-log10(pvals$score.pval.adjust),na.rm=TRUE)
