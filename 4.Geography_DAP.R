@@ -270,7 +270,7 @@ write.csv(cox.geo.pvalues,
                          "Geoeffect-bystratum-pvals.csv"),
           row.names = FALSE)
 
-## Correlation between hazard ratios by states and US life expectancy?
+###### Correlation between hazard ratios by states and US life expectancy?
 
 hr.st <- exp(cbind(as.data.frame(cox.geo.adj.st$coefficients),
                as.data.frame(confint(cox.geo.adj.st))))
@@ -297,14 +297,16 @@ ggplot(hr.st,aes(x=LE,y=Dog.HR))+
   geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey50")+
   geom_label(aes(label=state.abbr))+
   scale_x_continuous(breaks=seq(65,85))+
-  theme_bw()+coord_trans(y="log10")+
+  theme_bw()+coord_trans(y="log10",ylim=c(0.4,2.1))+
   annotation_logticks(side="l",scaled=FALSE)+
   geom_smooth(aes(weight=1/Dog.SE^2),method="lm")+
-  annotate("text",x=71,y=2,label=bquote(italic(r) == .(hr.le.r)),hjust=0,vjust=0)+
-  annotate("text",x=71,y=2,label=bquote(italic(rho) == .(hr.le.rho)),hjust=0,vjust=1.5)+
+  geom_abline(slope=-1/78.2,intercept=2,color="red",linetype="dashed")+
+  annotate("text",x=71,y=2,label="Linear fit to state-level HRs",hjust=0,vjust=0)+
+  annotate("text",x=71,y=2,label=bquote(italic(r) == .(hr.le.r)*","~italic(rho) == .(hr.le.rho)),hjust=0,vjust=1.5)+
   annotate("text",x=71,y=2,label=bquote(italic(p) == .(hr.le.pval)),hjust=0,vjust=3)+
   annotate("text",x=71,y=2,label=bquote(slope == .(hr.le.slope)),hjust=0,vjust=4.5)+
-  xlab("Human Life Expectancy (yrs) by State")+ylab("Adjusted DAP Mortality Hazard Ratio by State")+
+  xlab("Human Life Expectancy (yrs)\nby State")+
+  ylab("Demographically Adjusted DAP Mortality Hazard Ratio (HR)")+
   theme(panel.grid.minor = element_blank())
 print(plt.hr.le.state)
 
@@ -325,34 +327,65 @@ plt.hr.le.state.relative<-ggplot(hr.st,aes(x=LE/78.2,y=Dog.HR))+
   ylab("Demographically-Adjusted DAP Mortality\nHazard Ratio by State (Reference=WA)")
 
 print(plt.hr.le.state.relative)
-ggsave(file.path(figfolder,"Fig.4.Geoeffect_State_DogvsHuman.pdf"),
-       plt.hr.le.state.relative,height=5,width=5)
 
-# hr.st$Dog.FracChange <- -log(hr.st$Dog.HR)/5.6
-# hr.st$Dog.YearsChange <- -log(hr.st$Dog.HR)/0.44
-# hr.st$LE.FracChange <- (hr.st$LE - 78.2)/78.2
-# hr.st$LE.YearsChange <- (hr.st$LE - 78.2)
-# linefit <- data.frame(LE = seq(floor(min(hr.st$LE)),ceiling(max(hr.st$LE)),0.1))
-# linefit$LE.FracChange <- (linefit$LE - 78.2)/78.2
-# linefit$Dog.FracChange <- -log(lm.res.coef[1]+lm.res.coef[2]*linefit$LE)/5.6
-# linefit$LE.YearsChange <- (linefit$LE - 78.2)
-# linefit$Dog.YearsChange <- -log(lm.res.coef[1]+lm.res.coef[2]*linefit$LE)/0.44
-# 
-# ggplot(hr.st,aes(x=LE.YearsChange,y=Dog.YearsChange))+
-#   geom_label(aes(label=state.abbr))+
-#   geom_line(data=linefit)+
-#   theme_bw()+
-#   xlab("Years Difference in Human Life Expectancy by State")+
-#   ylab("Years Difference in Adjusted DAP Life Expectancy by State")+
-#   theme(panel.grid.minor = element_blank())
-# 
-# 
-# ggplot(hr.st,aes(x=LE.FracChange,y=Dog.FracChange))+
-#   geom_label(aes(label=state.abbr))+
-#   geom_line(data=linefit)+
-#   theme_bw()+#coord_trans(x="log10",y="log10")+
-#   scale_x_continuous(labels=scales::percent,limits=c(-0.1,0.05))+
-#   scale_y_continuous(labels=scales::percent)+
-#   xlab("% Difference in Human Life Expectancy by State")+
-#   ylab("% Difference in Adjusted DAP Life Expectancy by State")+
-#   theme(panel.grid.minor = element_blank())
+#### Try using life expectancy as a continuous variable
+
+rownames(le.st) <- le.st$state.abbr
+survivalData$state.LE <- le.st[as.character(survivalData$state),"LE"]
+cox.geo.adj.state.LE <- coxph(surv ~ state.LE +
+                          strata(Size_Class_at_HLES,Breed_Class,Sex),
+                        data=survivalData)
+cox.geo.adj.state.LE.zph <- cox.zph(cox.geo.adj.state.LE)
+survivalData$state.LE.5 <- survivalData$state.LE/5
+cox.geo.adj.state.LE.5 <- coxph(surv ~ state.LE.5 +
+                                strata(Size_Class_at_HLES,Breed_Class,Sex),
+                              data=survivalData)
+cox.geo.adj.state.LE.5.sum <- summary(cox.geo.adj.state.LE.5)
+exp(c(coef(cox.geo.adj.state.LE.5),confint(cox.geo.adj.state.LE.5)))
+
+cox.geo.adj.state.LE.5.coef <- 
+  cbind(data.frame(Variable="State-Level\nHuman Life Expectancy",
+                       logrankp=cox.geo.adj.state.LE.5.sum$sctest["pvalue"]),
+            left_join(as.data.frame(cox.geo.adj.state.LE.5.sum$coefficients),
+                      as.data.frame(cox.geo.adj.state.LE.5.sum$conf.int)),
+        as.data.frame(t(cox.geo.adj.state.LE.zph$table[1,]))
+  )
+names(cox.geo.adj.state.LE.5.coef)[ncol(cox.geo.adj.state.LE.5.coef)-(2:0)] <- 
+  paste0(names(cox.geo.adj.state.LE.5.coef)[ncol(cox.geo.adj.state.LE.5.coef)-(2:0)],".zph")
+write.csv(cox.geo.adj.state.LE.5.coef,
+          file=file.path(resultsfolder,
+                         "Geoeffect-Cox-Human.LE.csv"),
+                    row.names = FALSE)
+
+hr.le.5.hr <- signif(cox.geo.adj.state.LE.5.coef$`exp(coef)`,2)
+hr.le.5.hr.lcl <- signif(cox.geo.adj.state.LE.5.coef$`lower .95`,2)
+hr.le.5.hr.ucl <- signif(cox.geo.adj.state.LE.5.coef$`upper .95`,2)
+hr.le.5.pval <- as.numeric(signif(cox.geo.adj.state.LE.5.coef$logrankp,2))
+plt.hr.le.5 <- 
+ggplot(cox.geo.adj.state.LE.5.coef)+
+  geom_hline(yintercept=1,linetype="dotted")+
+  geom_point(aes(y=`exp(coef)`,x=Variable),shape=15,size=3,color="grey50")+
+  geom_errorbar(aes(ymin=`lower .95`,ymax=`upper .95`,x=Variable),width=0)+
+  annotate("text",x=0.5,y=2,label="Cox model for state",
+           hjust=0,vjust=0)+
+  annotate("text",x=0.5,y=2,label="human life expectancy",
+           hjust=0,vjust=1.5)+
+  annotate("text",x=0.5,y=2,label=
+             bquote(HR == .(hr.le.5.hr)~"["*.(hr.le.5.hr.lcl) - .(hr.le.5.hr.ucl)*"]"),
+           hjust=0,vjust=3)+
+  annotate("text",x=0.5,y=2,label=
+             bquote(italic(p) == .(hr.le.5.pval)),
+           hjust=0,vjust=4.5)+
+  ylab("")+
+  xlab("per 5 yr increase in\nHuman Life Expectancy ")+
+  scale_x_discrete(labels="")+
+  theme_bw()+coord_trans(y="log10",ylim=c(0.4,2.1))+
+  annotation_logticks(side="l",scaled=FALSE)+
+  theme(panel.grid.minor = element_blank(),panel.grid.major.x=element_blank())
+print(plt.hr.le.5)
+fig4<-ggarrange(plt.hr.le.state,plt.hr.le.5,ncol=2,widths = c(2,1),labels = "AUTO")
+
+ggsave(file.path(figfolder,"Fig.4.Geoeffect_State_DogvsHuman.pdf"),
+       fig4,height=4,width=6,scale=1.25)
+
+
