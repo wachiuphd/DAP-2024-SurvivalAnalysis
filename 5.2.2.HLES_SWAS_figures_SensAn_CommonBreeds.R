@@ -6,7 +6,18 @@ library(stringr)
 library(cowplot)
 figfolder <- "Figures"
 resultsfolder <- "Results"
+load(file.path(resultsfolder,"Supp.HLES_Cox.Rdata"))
 load(file.path(resultsfolder,"Supp.HLES_Cox.top16.Rdata"))
+pvals.comp<-full_join(pvals,pvals.top16,by=names(pvals)[c(1:9,11)])
+# Spearman cor = 0.43
+cor(pvals.comp$score.pval.adjust.x,pvals.comp$score.pval.adjust.y,
+    method="spearman",use="complete.obs")
+plot(gplots::venn(list(MatureAdultDogs=vars.to.plot.top16$Variable,AllDogs=vars.to.plot$Variable)))
+mtext("q < 0.05",side=3)
+
+plot(gplots::venn(list(MatureAdultDogs=subset(vars.to.plot.top16,score.pval.adjust<=3e-4)$Variable,
+                       AllDogs=subset(vars.to.plot,score.pval.adjust<=3e-4)$Variable)))
+mtext("q < 0.0003",side=3)
 
 ## Manhattan plot
 
