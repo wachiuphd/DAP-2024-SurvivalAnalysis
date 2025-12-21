@@ -18,7 +18,49 @@ mtext("q < 0.05",side=3)
 plot(gplots::venn(list(MatureAdultDogs=subset(vars.to.plot.MAdult,score.pval.adjust<=3e-4)$Variable,
                        AllDogs=subset(vars.to.plot,score.pval.adjust<=3e-4)$Variable)))
 mtext("q < 0.0003",side=3)
-     
+
+vars.both <-
+  vars.to.plot.MAdult$Variable[(vars.to.plot.MAdult$Variable %in% vars.to.plot$Variable)]
+print(vars.both)
+
+# [1] hs_general_health                                         
+# [2] hs_chronic_condition_present                              
+# [3] pa_activity_level                                         
+# [4] pa_on_leash_walk_slow_pace_pct                            
+# [5] pa_physical_games_frequency                               
+# [6] db_energetic_frequency                                    
+# [7] hs_health_conditions_endocrine                            
+# [8] pa_avg_activity_intensity                                 
+# [9] hs_health_conditions_cancer                               
+# [10] pa_swim                                                   
+# [11] pa_off_leash_walk_slow_pace_pct                           
+# [12] hs_new_condition_diagnosed_recently                       
+# [13] df_primary_diet_component_change_health_condition_specific
+# [14] db_chases_squirrels_frequency                             
+# [15] de_recreational_spaces                                    
+# [16] hs_health_conditions_cardiac                              
+# [17] df_appetite_change_last_year                              
+# [18] hs_chronic_condition_recently_changed_or_treated          
+# [19] pa_on_leash_walk_brisk_pace_pct                           
+# [20] db_training_obeys_sit_command_frequency                   
+# [21] db_training_obeys_stay_command_frequency                  
+# [22] hs_health_conditions_neurological                         
+# [23] df_ever_underweight                                       
+# [24] db_playful_frequency                                      
+# [25] de_routine_toys                                           
+# [26] de_daytime_sleep_avg_hours                                
+# [27] db_pulls_leash_frequency                                  
+# [28] df_ever_overweight                                        
+# [29] db_chases_birds_frequency                                 
+# [30] mp_recent_non_prescription_meds_upset_stomach             
+# [31] pa_other_aerobic_activity_avg_intensity                   
+# [32] de_eats_grass_frequency                                   
+# [33] df_weight_change_last_year                                
+# [34] de_drinks_outdoor_water                                   
+# [35] hs_recent_hospitalization                                 
+# [36] de_stairs_in_home                                         
+# [37] de_home_years_lived_in                                    
+# [38] pa_off_leash_walk_brisk_pace_pct  
 ## Manhattan plot
 
 ymax <- max(-log10(pvals.MAdult$score.pval.adjust),na.rm=TRUE)
