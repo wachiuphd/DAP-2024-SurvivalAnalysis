@@ -4,6 +4,9 @@ library(ggplot2)
 library(tidyverse)
 library(stringr)
 library(cowplot)
+library(ggcorrplot)
+library(ggVennDiagram)
+library(ggpubr)
 figfolder <- "Figures"
 resultsfolder <- "Results"
 load(file.path(resultsfolder,"Supp.HLES_Cox.Rdata"))
@@ -13,10 +16,89 @@ pvals.comp<-full_join(pvals,pvals.top16,by=names(pvals)[c(1:9,11)])
 # Spearman cor = 0.43
 cor(pvals.comp$score.pval.adjust.x,pvals.comp$score.pval.adjust.y,
     method="spearman",use="complete.obs")
-plot(gplots::venn(list(Top16Breeds=vars.to.plot.top16$Variable,
-                       MatureAdultDogs=vars.to.plot.MAdult$Variable,
-                       AllDogs=vars.to.plot$Variable)))
-mtext("q < 0.05",side=3)
+# All 3 together
+
+vars.to.plot.all.list<-list(AllDogs=vars.to.plot$Variable, 
+                            MatureAdultDogs=vars.to.plot.MAdult$Variable,
+                            Top16Breeds=vars.to.plot.top16$Variable
+                       )
+plt.sens.venn <-
+ggVennDiagram(vars.to.plot.all.list,order.set.by="name",
+              category.names=c("Full\nCohort","Mature\nAdults","Top 16 Breeds"))+
+  ggtitle("Significant Variables (q<0.05)")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+pvals.comp.all<-full_join(pvals,
+                          full_join(pvals.MAdult,
+                                    pvals.top16,by=names(pvals)[c(1:9,11)],
+                                    suffix = c(".MAdult", ".top16")),
+                          by=names(pvals)[c(1:9,11)])
+cor_matrix <- cor(pvals.comp.all[,c("score.pval","score.pval.MAdult","score.pval.top16")],
+                  method="spearman",use="complete.obs")
+cor_matrix.adjust <- cor(pvals.comp.all[,c("score.pval.adjust","score.pval.adjust.MAdult","score.pval.adjust.top16")],
+                  method="spearman",use="complete.obs")
+
+cor_matrix.both <- as.matrix(cor_matrix)
+cor_matrix.both[2,1] <- cor_matrix.adjust[2,1]
+cor_matrix.both[3,1] <- cor_matrix.adjust[3,1]
+cor_matrix.both[3,2] <- cor_matrix.adjust[3,2]
+rownames(cor_matrix.both) <- c("Full\nCohort","Mature\nAdults","Top 16\nBreeds")
+colnames(cor_matrix.both) <- c("Full\nCohort","Mature\nAdults","Top 16\nBreeds")
+
+plt.sens.corr <-
+ggcorrplot(cor_matrix.both,lab=TRUE,show.diag = FALSE,
+           legend.title=bquote(rho))+
+  geom_abline(slope=1,intercept=0)+
+  ggtitle("Correlations of p-values")+
+  annotate("text",x=2,y=2,label="log rank p-value",angle=45,vjust=-1)+
+  annotate("text",x=2,y=2,label="q=FDR-corrected log rank p-value",angle=45,vjust=1.5)+
+  theme(plot.title = element_text(hjust = 0.5))
+
+pvals.mat <- pivot_longer(pvals.comp.all[,c("Variable","SurveyText","variable_group","variable_group_name",
+                                            "score.pval.adjust","score.pval.adjust.MAdult","score.pval.adjust.top16")],
+                          5:7)
+pvals.mat$logvalue.trunc <- -log10(pmin(0.1,pvals.mat$value))
+
+plt.sens.q <-
+ggplot(pvals.mat,aes(y=Variable,x=name,fill=logvalue.trunc>(-log10(0.05))))+
+  geom_raster(interpolate=FALSE)+facet_wrap(~variable_group_name,scales="free_y")+
+  scale_x_discrete(labels=c("Full\nCohort","Mature\nAdults","Top 16\nBreeds"))+
+  scale_fill_viridis_d("",labels=c("q>0.05","q<0.05",""),begin=0.2)+
+  xlab("Cohort Subset")+
+  theme_bw()+theme(legend.position="top",
+                   panel.grid = element_blank(),
+                   axis.text.y = element_blank(),axis.text.x=element_text(angle=90,vjust=0.5))
+
+plt.sens.sig <-
+ggplot(pvals.mat,aes(y=Variable,x=name,fill=logvalue.trunc))+
+  geom_raster(interpolate=FALSE)+facet_wrap(~variable_group_name,scales="free_y")+
+  scale_x_discrete(labels=c("Full\nCohort","Mature\nAdults","Top 16\nBreeds"))+
+  scale_fill_viridis_c("-log(q)",trans="log10",begin=0.2)+
+  xlab("Cohort Subset")+
+  theme_bw()+theme(legend.position="top",
+                   panel.grid = element_blank(),
+                   axis.text.y = element_blank(),axis.text.x=element_text(angle=90,vjust=0.5))
+
+ggsave(file.path(figfolder,"Supp.Fig.SensAn.jpg"),dpi=600,
+       ggarrange(plotlist=list(plt.sens.corr,plt.sens.sig,plt.sens.venn,plt.sens.q),
+                 labels = "AUTO",widths=c(1,2)),
+       height=5,width=6,scale=2.1)
+ggsave(file.path(figfolder,"Supp.Fig.SensAn.pdf"),dpi=600,
+       ggarrange(plotlist=list(plt.sens.corr,plt.sens.sig,plt.sens.venn,plt.sens.q),
+          labels = "AUTO",widths=c(1,2)),
+       height=5,width=6,scale=2.1)
+
+# ggplot(pvals.comp.all) + 
+#   stat_(aes(score.pval.adjust,color="Full DAP Cohort")) +
+#   stat_count(aes(score.pval.adjust.MAdult,color="Mature Adult Dogs")) +
+#   stat_count(aes(score.pval.adjust.top16,color="Top 16 Breeds")) +
+#   facet_wrap(~variable_group_name,scales="free_y")+scale_color_viridis_d(end=0.8)+
+#   geom_vline(xintercept = 0.05,color="grey",linetype="dashed")
+
+# corrplot(cor_matrix.both,addCoef.col = "white",tl.pos = "d",tl.col="black")
+# title(ylab="Spearman correlations for FDR-corrected p-value",cex=1,line=1)
+# title(main="Spearman correlations for log rank p-value",cex.main=1,font.main=1,line=3)
 
 vars.all.three <-
   vars.to.plot.top16$Variable[(vars.to.plot.top16$Variable %in% vars.to.plot$Variable) &
