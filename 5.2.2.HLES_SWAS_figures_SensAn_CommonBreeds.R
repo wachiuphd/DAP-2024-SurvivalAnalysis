@@ -89,16 +89,6 @@ ggsave(file.path(figfolder,"Supp.Fig.SensAn.pdf"),dpi=600,
           labels = "AUTO",widths=c(1,2)),
        height=5,width=6,scale=2.1)
 
-# ggplot(pvals.comp.all) + 
-#   stat_(aes(score.pval.adjust,color="Full DAP Cohort")) +
-#   stat_count(aes(score.pval.adjust.MAdult,color="Mature Adult Dogs")) +
-#   stat_count(aes(score.pval.adjust.top16,color="Top 16 Breeds")) +
-#   facet_wrap(~variable_group_name,scales="free_y")+scale_color_viridis_d(end=0.8)+
-#   geom_vline(xintercept = 0.05,color="grey",linetype="dashed")
-
-# corrplot(cor_matrix.both,addCoef.col = "white",tl.pos = "d",tl.col="black")
-# title(ylab="Spearman correlations for FDR-corrected p-value",cex=1,line=1)
-# title(main="Spearman correlations for log rank p-value",cex.main=1,font.main=1,line=3)
 
 vars.all.three <-
   vars.to.plot.top16$Variable[(vars.to.plot.top16$Variable %in% vars.to.plot$Variable) &
