@@ -277,6 +277,7 @@ hr.st <- exp(cbind(as.data.frame(cox.geo.adj.st$coefficients),
 hr.st$Dog.SE <- log(hr.st$`97.5 %`/hr.st$`2.5 %`)/(2*qnorm(0.975)) # used for weights
 names(hr.st)[1] <- "Dog.HR"
 hr.st$state.abbr <- gsub("state","",rownames(hr.st))
+hr.st[nrow(hr.st)+1,] <- data.frame(1,NA,NA,NA,"WA")
 
 le.st <- read.csv(file.path(datfolder,"U.S._State_Life_Expectancy_by_Sex__2021.csv"))
 le.st$state.abbr <- state2abbr(le.st$State)
@@ -284,7 +285,7 @@ le.st <- subset(le.st,Sex=="Total")
 le.st$LE.Ratio <- log(le.st$LE/subset(le.st,state.abbr=="WA")$LE)
 hr.st <- left_join(hr.st,le.st)
 
-lm.res <- lm(Dog.HR ~ LE,weights=1/Dog.SE^2,data=hr.st)
+lm.res <- lm(Dog.HR ~ LE,weights=1/Dog.SE^2,data=subset(hr.st,!is.na(Dog.SE)))
 lm.res.coef <- coef(lm.res)
 lm.res.sum <- summary(lm.res)
 hr.le.pval <- signif(last(lm.res.sum$coefficients["LE",]),2)
@@ -388,4 +389,107 @@ fig4<-ggarrange(plt.hr.le.state,plt.hr.le.5,ncol=2,widths = c(2,1),labels = "AUT
 ggsave(file.path(figfolder,"Fig.4.Geoeffect_State_DogvsHuman.pdf"),
        fig4,height=4,width=6,scale=1.25)
 
+###### Alternative - correlation between hazard ratios by states and age-adjusted mortality rate
 
+hr.st <- exp(cbind(as.data.frame(cox.geo.adj.st$coefficients),
+                   as.data.frame(confint(cox.geo.adj.st))))
+hr.st$Dog.SE <- log(hr.st$`97.5 %`/hr.st$`2.5 %`)/(2*qnorm(0.975)) # used for weights
+names(hr.st)[1] <- "Dog.HR"
+hr.st$state.abbr <- gsub("state","",rownames(hr.st))
+# hr.st[nrow(hr.st)+1,] <- data.frame(1,NA,NA,NA,"WA")
+
+mr.st <- subset(read.csv(file.path(datfolder,"HDPulse_data_export.csv"),skip=4),
+                (FIPS > 0 ) & (!is.na(FIPS)))
+mr.st$state.abbr <- state2abbr(mr.st$State)
+mr.st <- subset(mr.st,state.abbr %in% c("WA",hr.st$state.abbr))
+names(mr.st)[3] <- "MR"
+mr.st$MR.Ratio <- mr.st$MR/subset(mr.st,state.abbr=="WA")$MR
+hr.st <- left_join(hr.st,mr.st)
+
+lm.res <- lm(log(Dog.HR) ~ log(MR.Ratio),weights=1/Dog.SE^2,data=hr.st)
+lm.res.coef <- coef(lm.res)
+lm.res.sum <- summary(lm.res)
+hr.mr.pval <- signif(last(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
+hr.mr.slope <- signif(first(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
+hr.mr.r <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Pearson"),2)
+hr.mr.rho <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Spearman"),2)
+
+plt.hr.mr.state <-
+  ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
+  geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
+  geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey50")+
+  geom_label(aes(label=state.abbr),alpha=0.7)+
+  scale_x_log10(breaks=seq(0.8,1.6,0.2))+
+  scale_y_log10(breaks=seq(0.4,2.0,0.2))+#coord_cartesian(xlim=c(0.7,1.7),ylim=c(0.5,2))+
+  theme_bw()+#coord_trans(x="log10",y="log10",xlim=c(0.4,2.1),ylim=c(0.4,2.1))+
+  annotation_logticks(side="bl")+
+  geom_smooth(aes(x=MR.Ratio,y=Dog.HR,weight=1/Dog.SE^2),method="lm")+
+  #geom_abline(slope=1,intercept=,color="red",linetype="dashed")+
+  #annotate("text",x=0.8,y=2,label="Linear fit log(HR)~log(CMR)",hjust=0,vjust=0)+
+  annotate("text",x=0.8,y=2,label=bquote(italic(r) == .(hr.mr.r)*","~italic(rho) == .(hr.mr.rho)),hjust=0,vjust=1.5)+
+  annotate("text",x=0.8,y=2,label=bquote(italic(p) == .(hr.mr.pval)),hjust=0,vjust=3)+
+  annotate("text",x=0.8,y=2,label=bquote(slope == .(hr.mr.slope)),hjust=0,vjust=4.5)+
+  xlab("Human Age-Adjusted Comparative Mortality Ratio (CMR)")+
+  ylab("Canine Demographics-Adjusted Mortality Hazard Ratio (HR)")+
+  theme(panel.grid.minor = element_blank())
+print(plt.hr.mr.state)
+
+ggsave(file.path(figfolder,"Fig.4alt.Geoeffect_State_DogvsHumanMortRate.pdf"),
+       plt.hr.mr.state,height=4,width=4,scale=1.25)
+
+#### Not used - using mortality rate as a continuous variable - though p-value is 6e-4
+
+# rownames(mr.st) <- mr.st$state.abbr
+# survivalData$state.MR <- mr.st[as.character(survivalData$state),"MR"]
+# cox.geo.adj.state.MR <- coxph(surv ~ state.MR +
+#                                 strata(Size_Class_at_HLES,Breed_Class,Sex),
+#                               data=survivalData)
+# cox.geo.adj.state.MR.zph <- cox.zph(cox.geo.adj.state.MR)
+# survivalData$state.MR.200 <- survivalData$state.MR/200
+# cox.geo.adj.state.MR.200 <- coxph(surv ~ state.MR.200 +
+#                                   strata(Size_Class_at_HLES,Breed_Class,Sex),
+#                                 data=survivalData)
+# cox.geo.adj.state.MR.200.sum <- summary(cox.geo.adj.state.MR.200)
+# exp(c(coef(cox.geo.adj.state.MR.200),confint(cox.geo.adj.state.MR.200)))
+# 
+# cox.geo.adj.state.MR.200.coef <- 
+#   cbind(data.frame(Variable="State-Level\nAge-Adjusted Mortality",
+#                    logrankp=cox.geo.adj.state.MR.200.sum$sctest["pvalue"]),
+#         left_join(as.data.frame(cox.geo.adj.state.MR.200.sum$coefficients),
+#                   as.data.frame(cox.geo.adj.state.MR.200.sum$conf.int)),
+#         as.data.frame(t(cox.geo.adj.state.MR.zph$table[1,]))
+#   )
+# names(cox.geo.adj.state.MR.200.coef)[ncol(cox.geo.adj.state.MR.200.coef)-(2:0)] <- 
+#   paste0(names(cox.geo.adj.state.MR.200.coef)[ncol(cox.geo.adj.state.MR.200.coef)-(2:0)],".zph")
+# write.csv(cox.geo.adj.state.MR.200.coef,
+#           file=file.path(resultsfolder,
+#                          "Geoeffect-Cox-Human.MR.csv"),
+#           row.names = FALSE)
+# 
+# hr.mr.200.hr <- signif(cox.geo.adj.state.MR.200.coef$`exp(coef)`,3)
+# hr.mr.200.hr.lcl <- signif(cox.geo.adj.state.MR.200.coef$`lower .95`,3)
+# hr.mr.200.hr.ucl <- signif(cox.geo.adj.state.MR.200.coef$`upper .95`,3)
+# hr.mr.200.pval <- as.numeric(signif(cox.geo.adj.state.MR.200.coef$logrankp,2))
+# plt.hr.mr.200 <- 
+#   ggplot(cox.geo.adj.state.MR.200.coef)+
+#   geom_hline(yintercept=1,linetype="dotted")+
+#   geom_point(aes(y=`exp(coef)`,x=Variable),shape=15,size=3,color="grey50")+
+#   geom_errorbar(aes(ymin=`lower .95`,ymax=`upper .95`,x=Variable),width=0)+
+#   annotate("text",x=0.5,y=2,label="Cox model for state",
+#            hjust=0,vjust=0)+
+#   annotate("text",x=0.5,y=2,label="Human Mortality Rate",
+#            hjust=0,vjust=1.5)+
+#   annotate("text",x=0.5,y=2,label=
+#              bquote(HR == .(hr.mr.200.hr)~"["*.(hr.mr.200.hr.lcl) - .(hr.mr.200.hr.ucl)*"]"),
+#            hjust=0,vjust=3)+
+#   annotate("text",x=0.5,y=2,label=
+#              bquote(italic(p) == .(hr.mr.200.pval)),
+#            hjust=0,vjust=4.5)+
+#   ylab("")+
+#   xlab("per 200 per 100,000 increase in\nAge-Adjusted Mortality")+
+#   scale_x_discrete(labels="")+
+#   theme_bw()+coord_trans(y="log10",ylim=c(0.4,2.1))+
+#   annotation_logticks(side="l",scaled=FALSE)+
+#   theme(panel.grid.minor = element_blank(),panel.grid.major.x=element_blank())
+# print(plt.hr.mr.200)
+# fig4<-ggarrange(plt.hr.mr.state,plt.hr.mr.200,ncol=2,widths = c(2,1),labels = "AUTO")
