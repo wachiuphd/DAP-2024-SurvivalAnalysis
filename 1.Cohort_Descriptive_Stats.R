@@ -85,6 +85,21 @@ dap.desc.stat.breed <- left_join(crude_deaths_breed,
                                    ages_breed.quant)
 )
 
+# Deaths / N different by Breed_Class?
+dap.desc.stat.breed.deaths.test <- prop.test(dap.desc.stat.breed$Deaths,
+                                                dap.desc.stat.breed$N)
+print(dap.desc.stat.breed.deaths.test$p.value)
+
+# Deaths / follow-up in days different by Breed_Class?
+dap.desc.stat.breed.crudemort.test <- prop.test(dap.desc.stat.breed$Deaths,
+                                                dap.desc.stat.breed$N*
+                                                  dap.desc.stat.breed$followup.years.mean*365)
+print(dap.desc.stat.breed.crudemort.test$p.value)
+
+# Entry age different by Breed_Class?
+dap.desc.stat.breed.entry.age.test<-summary(lm(first.age~Breed_Class,data=survivalData))
+print(dap.desc.stat.breed.entry.age.test$coefficients)
+
 write.csv(rbind(dap.desc.stat.all,dap.desc.stat.breed),
           file.path(resultsfolder,"DAP_desc_stat.csv"),row.names = FALSE)
 
