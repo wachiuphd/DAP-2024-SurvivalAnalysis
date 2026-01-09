@@ -147,6 +147,24 @@ ggsave(file.path(figfolder,"Supp.Fig.Survival_DAP_demographics.sex_effect.pdf"),
 
 #### 
 
+cox.b.sex.breed.pvalues <- data.frame()
+for (Size_Class_at_HLES_now in levels(survivalData$Size_Class_at_HLES)) {
+    cox.b.tmp <- coxph(surv ~ Sex*Breed_Class,data=survivalData,
+                       subset=Size_Class_at_HLES == Size_Class_at_HLES_now)
+    cox.b.sex.breed.pvalues <- rbind(cox.b.sex.breed.pvalues,
+                               data.frame(Size_Class_at_HLES=Size_Class_at_HLES_now,
+                                          log.rank.pvalue=summary(cox.b.tmp)$sctest["pvalue"]))
+}
+cox.b.sex.breed.pvalues$Size_Class_at_HLES <- factor(cox.b.sex.breed.pvalues$Size_Class_at_HLES,
+                                               levels=levels(survivalData$Size_Class_at_HLES))
+
+print(cox.b.sex.breed.pvalues)
+write.csv(cox.b.sex.breed.pvalues,
+          file.path(resultsfolder,"Survival_DAP_demographics_sex.breed.effect-pvals.csv"),
+          row.names = FALSE)
+
+####
+
 plt.forest.median.b.s<-ggplot(fit.b.s.sum.df)+
   geom_errorbarh(aes(xmin=`0.95LCL`,xmax=`0.95UCL`,
                      y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES),height=0.05)+
