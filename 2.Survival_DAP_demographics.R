@@ -67,7 +67,7 @@ plt.b.km.s<-ggsurvplot_facet(fit.b.s,data=survivalData,
                              facet.by=c("Sex","Breed_Class"),
                              censor=FALSE,xlab="Age (yr)",
                              surv.median.line = "hv",short.panel.labs=TRUE
-                             )+scale_color_viridis_d(end=0.8)+
+                             )+scale_color_viridis_d(option="turbo",end=0.8)+
   geom_text(aes(x=20,y=0.75,label=paste0("p=",signif(log.rank.pvalue,2))),
             data=cox.b.s.pvalues,hjust=0)+theme(legend.position = "bottom")
 
@@ -158,9 +158,10 @@ plt.forest.median.b.s<-ggplot(fit.b.s.sum.df)+
   geom_point(aes(x=q25,y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES,shape="IQR"))+
   geom_point(aes(x=q75,y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES,shape="IQR"))+
   xlab("Median & IQR lifespan [CI]")+
-  scale_shape_discrete("",limits=rev)+scale_color_viridis_d(end=0.8,limits=rev)+
+  scale_shape_discrete("",limits=rev)+scale_color_viridis_d(option="turbo",end=0.8)+
   guides(color="none")+theme_bw()+theme(legend.position="bottom")+
   coord_cartesian(xlim=c(5,20))+scale_y_discrete(limits=rev)+
+  scale_x_continuous(minor_breaks=seq(5,20))+
   facet_wrap(~Size_Class_at_HLES ,ncol=1)
 print(plt.forest.median.b.s)
 
@@ -169,9 +170,10 @@ plt.forest.mean.b.s<-ggplot(fit.b.s.sum.df)+
                      xmax=rmean+1.96*`se(rmean)`,
                      y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES),height=0)+
   geom_point(aes(x=rmean,y=interaction(Sex,Breed_Class),color=Size_Class_at_HLES))+
-  xlab("Mean lifespan [CI]")+scale_color_viridis_d(end=0.8,limits=rev)+
+  xlab("Mean lifespan [CI]")+scale_color_viridis_d(option="turbo",end=0.8)+
   guides(color="none")+theme_bw()+
   coord_cartesian(xlim=c(5,20))+scale_y_discrete(limits=rev)+
+  scale_x_continuous(minor_breaks=seq(5,20))+
   facet_wrap(~Size_Class_at_HLES ,ncol=1)
 print(plt.forest.mean.b.s)
 
