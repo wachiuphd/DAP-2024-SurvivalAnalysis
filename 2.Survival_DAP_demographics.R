@@ -201,3 +201,30 @@ ggsave(file.path(figfolder,"Fig.1.Survival_DAP_demographics.KM.forest.pdf"),
        height=7,width=6,scale=1.3)
 ggsave(file.path(figfolder,"Supp.Fig.Survival_DAP_demographics.forest.mean.pdf"),
        plt.forest.mean.b.s)
+
+#### Check intact or not effect
+survivalData$intact <- grepl("intact",survivalData$Sex_Class_at_HLES)
+cox.intact<-coxph(surv ~  intact +
+        strata(Size_Class_at_HLES,Breed_Class,Sex),
+      data=survivalData)
+cox.intact.poverall <- summary(cox.intact)$sctest["pvalue"]
+print(cox.intact.poverall)
+
+cox.intact.pvalues<-data.frame()
+for (Size_Class_now in levels(survivalData$Size_Class_at_HLES)) {
+  for (Breed_Class_now in levels(survivalData$Breed_Class)) {
+    for (Sex_now in levels(survivalData$Sex)) {
+      cox.intact.tmp <- coxph(surv ~ intact,
+                              data=survivalData,
+                         subset=Size_Class_at_HLES == Size_Class_now &
+                           Breed_Class == Breed_Class_now &
+                           Sex == Sex_now)
+      cox.intact.pvalues <- rbind(cox.intact.pvalues,
+                               data.frame(Size_Class_at_HLES=Size_Class_now,
+                                 Breed_Class=Breed_Class_now,
+                                          Sex=Sex_now,
+                                          log.rank.pvalue=summary(cox.intact.tmp)$sctest["pvalue"]))
+    }
+  }
+}
+cox.intact.pvalues$p.adj <- p.adjust(cox.intact.pvalues$log.rank.pvalue,method="bonferroni")
