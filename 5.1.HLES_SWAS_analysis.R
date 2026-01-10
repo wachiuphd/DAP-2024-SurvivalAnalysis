@@ -6,7 +6,7 @@ library(survminer)
 library(dplyr)
 library(viridisLite)
 library(stringr)
-library(ClustOfVar)
+# library(ClustOfVar)
 source("ggforest2.R")
 datfolder <- "data"
 resultsfolder <- "results"
@@ -97,7 +97,7 @@ remove(HLES_dog_owner)
 
 ###### Cox modeling for each variable
 pvals <- cbind(vars.to.keep,
-               data.frame(Type=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
+               data.frame(Type=NA,Ref=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
 for (j in 1:nrow(pvals)) {
   var.now <- as.character(vars.to.keep$Variable[j])
   print(paste(j,var.now,"----------"))
@@ -107,6 +107,14 @@ for (j in 1:nrow(pvals)) {
   set.seed(3.14159)
   data.tmp$xrand <- sample(data.tmp$x)
   pvals$Type[j] <- class(data.tmp$x)
+  if (class(data.tmp$x) == "factor") { # re-order factors to reference is largest category
+    orig_levels <- levels(data.tmp$x)
+    maxlevel <- names(which.max(table(data.tmp$x)))
+    pvals$Ref[j] <- maxlevel
+    data.tmp$x <- factor(as.character(data.tmp$x),
+                         levels=c(orig_levels[orig_levels==maxlevel],orig_levels[orig_levels!=maxlevel])
+    )
+  }
   try( {
     remove(cox.tmp); # clean up
     cox.tmp <- coxph(surv ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
@@ -150,6 +158,13 @@ for (j in 1:nrow(vars.to.plot)) {
   print(paste(j,type.now,var.now,"----------"))
   data.tmp <- left_join(survivalData,d[,c("dog_id",var.now)])
   names(data.tmp)[ncol(data.tmp)]<-"x"
+  if (class(data.tmp$x) == "factor") { # re-order factors to reference is largest category
+    orig_levels <- levels(data.tmp$x)
+    maxlevel <- names(which.max(table(data.tmp$x)))
+    data.tmp$x <- factor(as.character(data.tmp$x),
+                         levels=c(orig_levels[orig_levels==maxlevel],orig_levels[orig_levels!=maxlevel])
+    )
+  }
   cox.tmp <- coxph(surv ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
                    data=data.tmp);
   cox.tmp.sum <- summary(cox.tmp)
@@ -171,10 +186,10 @@ save(cox.coef,vars.to.keep,vars.to.plot,d,pvals,vargroups,variable_group_tab,
      variable_group_tab.df,
      file=file.path(resultsfolder,"Supp.HLES_Cox.Rdata"))
 
-d.quant<-d[,as.character(subset(vars.to.plot,!make.factor)$Variable)]
-d.quali<-d[,as.character(subset(vars.to.plot,make.factor)$Variable)]
-d.hclusvar<-hclustvar(d.quant,d.quali)
-save(d.hclusvar,file=file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
+# d.quant<-d[,as.character(subset(vars.to.plot,!make.factor)$Variable)]
+# d.quali<-d[,as.character(subset(vars.to.plot,make.factor)$Variable)]
+# d.hclusvar<-hclustvar(d.quant,d.quali)
+# save(d.hclusvar,file=file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
 
 ###### Sensitivity analysis - Mature Adult LifeStage only
 
@@ -188,13 +203,21 @@ surv.MAdult <- Surv(time=survivalData.MAdult$first.age,
 
 ## Cox modeling for each variable
 pvals.MAdult <- cbind(vars.to.keep,
-                      data.frame(Type=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
+                      data.frame(Type=NA,Ref=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
 for (j in 1:nrow(pvals.MAdult)) {
   var.now <- as.character(vars.to.keep$Variable[j])
   print(paste(j,var.now,"----------"))
   # Join with survival data
   data.tmp <- left_join(survivalData.MAdult,d[,c("dog_id",var.now)])
   names(data.tmp)[ncol(data.tmp)]<-"x"
+  if (class(data.tmp$x) == "factor") { # re-order factors to reference is largest category
+    orig_levels <- levels(data.tmp$x)
+    maxlevel <- names(which.max(table(data.tmp$x)))
+    pvals.MAdult$Ref[j] <- maxlevel
+    data.tmp$x <- factor(as.character(data.tmp$x),
+                         levels=c(orig_levels[orig_levels==maxlevel],orig_levels[orig_levels!=maxlevel])
+    )
+  }
   set.seed(3.14159)
   data.tmp$xrand <- sample(data.tmp$x)
   pvals.MAdult$Type[j] <- class(data.tmp$x)
@@ -241,6 +264,13 @@ for (j in 1:nrow(vars.to.plot.MAdult)) {
   print(paste(j,type.now,var.now,"----------"))
   data.tmp <- left_join(survivalData.MAdult,d[,c("dog_id",var.now)])
   names(data.tmp)[ncol(data.tmp)]<-"x"
+  if (class(data.tmp$x) == "factor") { # re-order factors to reference is largest category
+    orig_levels <- levels(data.tmp$x)
+    maxlevel <- names(which.max(table(data.tmp$x)))
+    data.tmp$x <- factor(as.character(data.tmp$x),
+                         levels=c(orig_levels[orig_levels==maxlevel],orig_levels[orig_levels!=maxlevel])
+    )
+  }
   cox.tmp <- coxph(surv.MAdult ~ x + strata(Size_Class_at_HLES,Breed_Class,Sex),
                    data=data.tmp);
   cox.tmp.sum <- summary(cox.tmp)
@@ -280,13 +310,21 @@ surv.top16 <- Surv(time=survivalData.top16$first.age,
 
 ## Cox modeling for each variable
 pvals.top16 <- cbind(vars.to.keep,
-               data.frame(Type=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
+               data.frame(Type=NA,Ref=NA,score.pval=NA,zph.pval=NA,score.pval.xrand=NA))
 for (j in 1:nrow(pvals.top16)) {
   var.now <- as.character(vars.to.keep$Variable[j])
   print(paste(j,var.now,"----------"))
   # Join with survival data
   data.tmp <- left_join(survivalData.top16,d[,c("dog_id",var.now)])
   names(data.tmp)[ncol(data.tmp)]<-"x"
+  if (class(data.tmp$x) == "factor") { # re-order factors to reference is largest category
+    orig_levels <- levels(data.tmp$x)
+    maxlevel <- names(which.max(table(data.tmp$x)))
+    pvals.top16$Ref[j] <- maxlevel
+    data.tmp$x <- factor(as.character(data.tmp$x),
+                         levels=c(orig_levels[orig_levels==maxlevel],orig_levels[orig_levels!=maxlevel])
+    )
+  }
   set.seed(3.14159)
   data.tmp$xrand <- sample(data.tmp$x)
   pvals.top16$Type[j] <- class(data.tmp$x)
@@ -333,6 +371,14 @@ for (j in 1:nrow(vars.to.plot.top16)) {
   print(paste(j,type.now,var.now,"----------"))
   data.tmp <- left_join(survivalData.top16,d[,c("dog_id",var.now)])
   names(data.tmp)[ncol(data.tmp)]<-"x"
+  if (class(data.tmp$x) == "factor") { # re-order factors to reference is largest category
+    orig_levels <- levels(data.tmp$x)
+    maxlevel <- names(which.max(table(data.tmp$x)))
+    pvals.top16$Ref[j] <- maxlevel
+    data.tmp$x <- factor(as.character(data.tmp$x),
+                         levels=c(orig_levels[orig_levels==maxlevel],orig_levels[orig_levels!=maxlevel])
+    )
+  }
   cox.tmp <- coxph(surv.top16 ~ x + strata(Breed,Sex),
                    data=data.tmp);
   cox.tmp.sum <- summary(cox.tmp)
@@ -352,6 +398,4 @@ write.csv(cox.coef.top16,file.path(resultsfolder,"Supp.HLES_Cox_signif_results.t
 save(cox.coef.top16,vars.to.keep,vars.to.plot.top16,d,pvals.top16,vargroups,variable_group_tab,
      variable_group_tab.df,
      file=file.path(resultsfolder,"Supp.HLES_Cox.top16.Rdata"))
-
-
 

@@ -35,26 +35,43 @@ hr.mr.slope <- signif(first(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
 hr.mr.r <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Pearson"),2)
 hr.mr.rho <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Spearman"),2)
 
-plt.hr.mr.state <-
-  ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
+# plt.hr.mr.state <-
+#   ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
+#   geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
+#   geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey50")+
+#   geom_label(aes(label=state.abbr),alpha=0.7)+
+#   scale_x_log10(breaks=seq(0.8,1.6,0.2))+
+#   scale_y_log10(breaks=seq(0.4,2.0,0.2))+#coord_cartesian(xlim=c(0.7,1.7),ylim=c(0.5,2))+
+#   theme_bw()+#coord_trans(x="log10",y="log10",xlim=c(0.4,2.1),ylim=c(0.4,2.1))+
+#   annotation_logticks(side="bl")+
+#   geom_smooth(aes(x=MR.Ratio,y=Dog.HR,weight=1/Dog.SE^2),method="lm")+
+#   annotate("text",x=0.8,y=2,label=bquote(italic(r) == .(hr.mr.r)*","~italic(rho) == .(hr.mr.rho)),hjust=0,vjust=1.5)+
+#   annotate("text",x=0.8,y=2,label=bquote(italic(p) == .(hr.mr.pval)),hjust=0,vjust=3)+
+#   annotate("text",x=0.8,y=2,label=bquote(slope == .(hr.mr.slope)),hjust=0,vjust=4.5)+
+#   xlab("Human Age-Adjusted Comparative Mortality Ratio (CMR) [2019-2023]")+
+#   ylab("Canine Demographics-Adjusted Mortality Hazard Ratio (HR)")+
+#   theme(panel.grid.minor = element_blank())
+
+plt.hr.mr.state <- ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
   geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
-  geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey50")+
-  geom_label(aes(label=state.abbr),alpha=0.7)+
-  scale_x_log10(breaks=seq(0.8,1.6,0.2))+
-  scale_y_log10(breaks=seq(0.4,2.0,0.2))+#coord_cartesian(xlim=c(0.7,1.7),ylim=c(0.5,2))+
+  geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
+  geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
+  scale_x_log10(breaks=seq(0.6,1.6,0.2))+
+  scale_y_log10(breaks=seq(0.6,1.6,0.2))+coord_cartesian(xlim=c(0.75,1.5),ylim=c(0.6,1.4))+
+  scale_size_continuous(range=c(0.01,6))+
   theme_bw()+#coord_trans(x="log10",y="log10",xlim=c(0.4,2.1),ylim=c(0.4,2.1))+
   annotation_logticks(side="bl")+
   geom_smooth(aes(x=MR.Ratio,y=Dog.HR,weight=1/Dog.SE^2),method="lm")+
-  annotate("text",x=0.8,y=2,label=bquote(italic(r) == .(hr.mr.r)*","~italic(rho) == .(hr.mr.rho)),hjust=0,vjust=1.5)+
-  annotate("text",x=0.8,y=2,label=bquote(italic(p) == .(hr.mr.pval)),hjust=0,vjust=3)+
-  annotate("text",x=0.8,y=2,label=bquote(slope == .(hr.mr.slope)),hjust=0,vjust=4.5)+
+  annotate("text",x=0.75,y=1.4,label=bquote(italic(r) == .(hr.mr.r)*","~italic(rho) == .(hr.mr.rho)),hjust=0,vjust=1.5)+
+  annotate("text",x=0.75,y=1.4,label=bquote(italic(p) == .(hr.mr.pval)),hjust=0,vjust=3)+
+  annotate("text",x=0.75,y=1.4,label=bquote(slope == .(hr.mr.slope)),hjust=0,vjust=4.5)+
   xlab("Human Age-Adjusted Comparative Mortality Ratio (CMR) [2019-2023]")+
   ylab("Canine Demographics-Adjusted Mortality Hazard Ratio (HR)")+
-  theme(panel.grid.minor = element_blank())
+  theme(panel.grid.minor = element_blank(),legend.position = "none")
 print(plt.hr.mr.state)
 
 ggsave(file.path(figfolder,"Fig.4.Geoeffect_State_DogvsHumanMortRate.pdf"),
-       plt.hr.mr.state,height=4,width=4,scale=1.25)
+       plt.hr.mr.state,height=4,width=4,scale=1.33)
 
 ###### Sensitivity Analysis - Use only 2023 mortality rates
 
@@ -83,19 +100,20 @@ hr.mr23.rho <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1
 plt.hr.mr23.state <-
   ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
   geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
-  geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey50")+
-  geom_label(aes(label=state.abbr),alpha=0.7)+
-  scale_x_log10(breaks=seq(0.8,1.6,0.2))+
-  scale_y_log10(breaks=seq(0.4,2.0,0.2))+#coord_cartesian(xlim=c(0.7,1.7),ylim=c(0.5,2))+
-  theme_bw()+#coord_trans(x="log10",y="log10",xlim=c(0.4,2.1),ylim=c(0.4,2.1))+
+  geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
+  geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
+  scale_x_log10(breaks=seq(0.6,1.6,0.2))+
+  scale_y_log10(breaks=seq(0.6,1.6,0.2))+coord_cartesian(xlim=c(0.75,1.5),ylim=c(0.6,1.4))+
+  scale_size_continuous(range=c(0.01,6))+
+  theme_bw()+
   annotation_logticks(side="bl")+
   geom_smooth(aes(x=MR.Ratio,y=Dog.HR,weight=1/Dog.SE^2),method="lm")+
-  annotate("text",x=0.8,y=2,label=bquote(italic(r) == .(hr.mr23.r)*","~italic(rho) == .(hr.mr23.rho)),hjust=0,vjust=1.5)+
-  annotate("text",x=0.8,y=2,label=bquote(italic(p) == .(hr.mr23.pval)),hjust=0,vjust=3)+
-  annotate("text",x=0.8,y=2,label=bquote(slope == .(hr.mr23.slope)),hjust=0,vjust=4.5)+
+  annotate("text",x=0.75,y=1.4,label=bquote(italic(r) == .(hr.mr23.r)*","~italic(rho) == .(hr.mr23.rho)),hjust=0,vjust=1.5)+
+  annotate("text",x=0.75,y=1.4,label=bquote(italic(p) == .(hr.mr23.pval)),hjust=0,vjust=3)+
+  annotate("text",x=0.75,y=1.4,label=bquote(slope == .(hr.mr23.slope)),hjust=0,vjust=4.5)+
   xlab("Human Age-Adjusted Comparative Mortality Ratio (CMR) [2023]")+
   ylab("Canine Demographics-Adjusted Mortality Hazard Ratio (HR)")+
-  theme(panel.grid.minor = element_blank())
+  theme(panel.grid.minor = element_blank(),legend.position = "none")
 print(plt.hr.mr23.state)
 
 ggsave(file.path(figfolder,"SuppFig.Geoeffect_State_DogvsHuman2023MortRate.pdf"),
@@ -108,7 +126,7 @@ hr.st <- exp(cbind(as.data.frame(cox.geo.adj.st$coefficients),
 hr.st$Dog.SE <- log(hr.st$`97.5 %`/hr.st$`2.5 %`)/(2*qnorm(0.975)) # used for weights
 names(hr.st)[1] <- "Dog.HR"
 hr.st$state.abbr <- gsub("state","",rownames(hr.st))
-hr.st[nrow(hr.st)+1,] <- data.frame(1,NA,NA,NA,"WA")
+# hr.st[nrow(hr.st)+1,] <- data.frame(1,NA,NA,NA,"WA")
 
 le.st <- read.csv(file.path(datfolder,"U.S._State_Life_Expectancy_by_Sex__2021.csv"))
 le.st$state.abbr <- state2abbr(le.st$State)
@@ -126,10 +144,10 @@ hr.le.rho <- signif(weightedCorr(hr.st$Dog.HR, hr.st$LE, weights = 1/hr.st$Dog.S
 
 plt.hr.le.state <-
   ggplot(hr.st,aes(x=LE,y=Dog.HR))+
-  geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey50")+
-  geom_label(aes(label=state.abbr))+
+  geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
+  geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
   scale_x_continuous(breaks=seq(65,85))+
-  theme_bw()+coord_trans(y="log10",ylim=c(0.4,2.1))+
+  theme_bw()+coord_trans(y="log10",ylim=c(0.5,2.1))+
   annotation_logticks(side="l",scaled=FALSE)+
   geom_smooth(aes(weight=1/Dog.SE^2),method="lm")+
   geom_abline(slope=-1/78.2,intercept=2,color="red",linetype="dashed")+
@@ -139,15 +157,15 @@ plt.hr.le.state <-
   annotate("text",x=71,y=2,label=bquote(slope == .(hr.le.slope)),hjust=0,vjust=4.5)+
   xlab("Human Life Expectancy (yrs)\nby State in 2021")+
   ylab("Demographically Adjusted DAP Mortality Hazard Ratio (HR)")+
-  theme(panel.grid.minor = element_blank())
+  theme(panel.grid.minor = element_blank(),legend.position = "none")
 print(plt.hr.le.state)
 
 hr.le.slope.rel <- signif(78.2*first(lm.res.sum$coefficients["LE",]),2)
 plt.hr.le.state.relative<-ggplot(hr.st,aes(x=LE/78.2,y=Dog.HR))+
   geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
-  geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey")+
-  geom_point()+
-  theme_bw()+theme(panel.grid = element_blank())+
+  geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
+  geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
+  theme_bw()+theme(panel.grid = element_blank(),legend.position="none")+
   coord_cartesian(xlim=c(0.9,1.05),ylim=c(0.6,1.4))+
   geom_smooth(aes(weight=1/Dog.SE^2),method="lm")+
   geom_abline(slope=-1,intercept=2,color="red",linetype="dashed")+

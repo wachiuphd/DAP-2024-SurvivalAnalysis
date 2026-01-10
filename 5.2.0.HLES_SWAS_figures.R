@@ -113,8 +113,8 @@ for (j in 1:nrow(vars.to.plot)) {
     cox.coef.tmp <- cox.coef.tmp[order(cox.coef.tmp$y,decreasing = TRUE),]
     cox.coef.tmp[nrow(cox.coef.tmp)+1,] <- cox.coef.tmp[1,]
     n <- nrow(cox.coef.tmp)
-    rownames(cox.coef.tmp)[n] <- paste0("x",labels.now[1])
-    cox.coef.tmp$y[n] <- labels.now[1]
+    rownames(cox.coef.tmp)[n] <- paste0("x",cox.coef.tmp$Ref[1]) #labels.now[1])
+    cox.coef.tmp$y[n] <-  cox.coef.tmp$Ref[1] # labels.now[1]
     cox.coef.tmp$Variable.y[n] <- paste(cox.coef.tmp$Variable[n],cox.coef.tmp$y[n],sep="|")
     cox.coef.tmp[n,c("coef","exp(coef)","se(coef)","z","Pr(>|z|)",
                      "exp(-coef)","lower .95","upper .95")]<-
@@ -124,7 +124,7 @@ for (j in 1:nrow(vars.to.plot)) {
     plt.cox.categorical.tmp <-
       ggplot(cox.coef.tmp)+
       geom_vline(xintercept=1,linetype="dotted")+
-      geom_point(aes(x=`exp(coef)`,y=y,shape=(as.numeric(y)==1)),size=3,color="grey50")+
+      geom_point(aes(x=`exp(coef)`,y=y,shape=(y==Ref)),size=3,color="grey50")+
       geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=y),height=0)+
       # geom_text(aes(x=1/10,y=y,
       #               label=paste0("HR=")),
@@ -235,37 +235,37 @@ ggsave(file.path(figfolder,"Fig.3.HLES_Cox_Exp_Resp.pdf"),
        scale=1.5,height=4,width=6)
 
 ###### Clustering
-
-load(file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
-
-d.dendro <- as.dendrogram(d.hclusvar)
-ddata_d <- dendro_data(d.dendro)
-labs <- label(ddata_d)
-row.names(vars.to.plot) <- as.character(vars.to.plot$Variable)
-labs$group <- vars.to.plot[labs$label,"variable_group_name"]
-x<-vars.to.plot[labs$label,"score.pval.adjust"]
-labs$pvalgroup <- case_when( x < 1e-10 ~ "p < 1e-10",
-                             x >= 1e-10 & x < 1e-6 ~"1e-10 < p < 1e-6",
-                             x >= 1e-6 & x < 0.05 ~ "1e-6 < p < 0.05")
-labs$pvalgroup <- factor(labs$pvalgroup,
-                         levels=c("p < 1e-10",
-                                  "1e-10 < p < 1e-6",
-                                  "1e-6 < p < 0.05"))
-labs$fontface <- c("bold.italic","bold","plain")[as.numeric(labs$pvalgroup)]
-plt.dendro <-
-  ggplot(segment(ddata_d)) +
-  geom_segment(aes(x=x, y=y, xend=xend, yend=yend))+
-  geom_text(data=label(ddata_d),
-            aes(label=label, x=x, y=-0.1, #color=labs$group,
-                fontface=labs$fontface),
-            hjust=1,size=3,show.legend=FALSE)+
-  geom_point(data=label(ddata_d),
-             aes(x=x, y=y, color=labs$group,size=labs$pvalgroup))+
-  theme_void()+theme(legend.position="right")+ylim(-5,NA)+
-  scale_size_manual("",values=c(3,2,1))+
-  scale_color_discrete("")+
-  guides(color = guide_legend(override.aes = list(size = 2)))+
-  coord_flip()
-print(plt.dendro)
-ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cluster-var.pdf"),plt.dendro,height=8,width=8)
+# 
+# load(file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
+# 
+# d.dendro <- as.dendrogram(d.hclusvar)
+# ddata_d <- dendro_data(d.dendro)
+# labs <- label(ddata_d)
+# row.names(vars.to.plot) <- as.character(vars.to.plot$Variable)
+# labs$group <- vars.to.plot[labs$label,"variable_group_name"]
+# x<-vars.to.plot[labs$label,"score.pval.adjust"]
+# labs$pvalgroup <- case_when( x < 1e-10 ~ "p < 1e-10",
+#                              x >= 1e-10 & x < 1e-6 ~"1e-10 < p < 1e-6",
+#                              x >= 1e-6 & x < 0.05 ~ "1e-6 < p < 0.05")
+# labs$pvalgroup <- factor(labs$pvalgroup,
+#                          levels=c("p < 1e-10",
+#                                   "1e-10 < p < 1e-6",
+#                                   "1e-6 < p < 0.05"))
+# labs$fontface <- c("bold.italic","bold","plain")[as.numeric(labs$pvalgroup)]
+# plt.dendro <-
+#   ggplot(segment(ddata_d)) +
+#   geom_segment(aes(x=x, y=y, xend=xend, yend=yend))+
+#   geom_text(data=label(ddata_d),
+#             aes(label=label, x=x, y=-0.1, #color=labs$group,
+#                 fontface=labs$fontface),
+#             hjust=1,size=3,show.legend=FALSE)+
+#   geom_point(data=label(ddata_d),
+#              aes(x=x, y=y, color=labs$group,size=labs$pvalgroup))+
+#   theme_void()+theme(legend.position="right")+ylim(-5,NA)+
+#   scale_size_manual("",values=c(3,2,1))+
+#   scale_color_discrete("")+
+#   guides(color = guide_legend(override.aes = list(size = 2)))+
+#   coord_flip()
+# print(plt.dendro)
+# ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cluster-var.pdf"),plt.dendro,height=8,width=8)
 

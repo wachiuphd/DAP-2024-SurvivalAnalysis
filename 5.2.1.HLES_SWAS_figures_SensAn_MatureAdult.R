@@ -1,4 +1,3 @@
-library(ClustOfVar)
 library(ggdendro)
 library(ggplot2)
 library(tidyverse)
@@ -141,8 +140,8 @@ for (j in 1:nrow(vars.to.plot.MAdult)) {
     cox.coef.tmp <- cox.coef.tmp[order(cox.coef.tmp$y,decreasing = TRUE),]
     cox.coef.tmp[nrow(cox.coef.tmp)+1,] <- cox.coef.tmp[1,]
     n <- nrow(cox.coef.tmp)
-    rownames(cox.coef.tmp)[n] <- paste0("x",labels.now[1])
-    cox.coef.tmp$y[n] <- labels.now[1]
+    rownames(cox.coef.tmp)[n] <- paste0("x",cox.coef.tmp$Ref[1]) # labels.now[1])
+    cox.coef.tmp$y[n] <- cox.coef.tmp$Ref[1] # labels.now[1]
     cox.coef.tmp$Variable.y[n] <- paste(cox.coef.tmp$Variable[n],cox.coef.tmp$y[n],sep="|")
     cox.coef.tmp[n,c("coef","exp(coef)","se(coef)","z","Pr(>|z|)",
                      "exp(-coef)","lower .95","upper .95")]<-
@@ -152,7 +151,7 @@ for (j in 1:nrow(vars.to.plot.MAdult)) {
     plt.cox.categorical.tmp <-
       ggplot(cox.coef.tmp)+
       geom_vline(xintercept=1,linetype="dotted")+
-      geom_point(aes(x=`exp(coef)`,y=y,shape=(as.numeric(y)==1)),size=3,color="grey50")+
+      geom_point(aes(x=`exp(coef)`,y=y,shape=(y==Ref)),size=3,color="grey50")+
       geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=y),height=0)+
       # geom_text(aes(x=1/10,y=y,
       #               label=paste0("HR=")),
