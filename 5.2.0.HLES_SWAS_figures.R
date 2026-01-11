@@ -59,7 +59,7 @@ plt.man.hles<-
   guides(color="none",size="none",fill=guide_legend(nrow=1))
 print(plt.man.hles)
 
-ggsave(file.path(figfolder,"Fig.2.Manh.pdf"),plt.man.hles,height=2,width=5.75,scale=2)
+ggsave(file.path(figfolder,"Fig.3.Manh.pdf"),plt.man.hles,height=2,width=5.75,scale=2)
 
 # pvals.tmp<-subset(pvals,!is.na(score.pval.adjust))
 # plt.man.hles.zoom<-
@@ -92,7 +92,7 @@ ggsave(file.path(figfolder,"Fig.2.Manh.pdf"),plt.man.hles,height=2,width=5.75,sc
 # fig2.with.inset<-ggdraw() + draw_plot(plt.man.hles) + 
 #   draw_plot(plt.man.hles.zoom,x=0.05,y=0.65,width=0.8,height=0.3)
 # 
-# ggsave(file.path(figfolder,"Fig.2.Manh.pdf"),fig2.with.inset,height=2,width=6,scale=2)
+# ggsave(file.path(figfolder,"Fig.3.Manh.pdf"),fig2.with.inset,height=2,width=6,scale=2)
 
 ## Plots of categorical variables
 plt.cox.categorical.list <- list()
@@ -227,7 +227,7 @@ ggsave(file.path(figfolder,"HLES_Cox_Details","HLES_HR.cox.numeric.brisk.slow.pd
 
 ## Make Figure 3
 
-ggsave(file.path(figfolder,"Fig.3.HLES_Cox_Exp_Resp.pdf"),
+ggsave(file.path(figfolder,"Fig.4.HLES_Cox_Exp_Resp.pdf"),
        ggarrange(plt.cox.categorical.list[[1]],
                  plt.cox.categorical.list[[5]],
                  plt.cox.categorical.list[[21]],

@@ -70,7 +70,7 @@ plt.hr.mr.state <- ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
   theme(panel.grid.minor = element_blank(),legend.position = "none")
 print(plt.hr.mr.state)
 
-ggsave(file.path(figfolder,"Fig.4.Geoeffect_State_DogvsHumanMortRate.pdf"),
+ggsave(file.path(figfolder,"Fig.2.Geoeffect_State_DogvsHumanMortRate.pdf"),
        plt.hr.mr.state,height=4,width=4,scale=1.33)
 
 ###### Sensitivity Analysis - Use only 2023 mortality rates
