@@ -62,15 +62,26 @@ plt.forest.median.top16.s<-ggplot(fit.top16.s.sum.df)+
   facet_wrap(~Breed,ncol=1)
 print(plt.forest.median.top16.s)
 
+plt.forest.median.top16.s<-ggplot(fit.top16.s.sum.df,aes(y=Sex))+
+  geom_boxplot(aes(xmin=q25,xlower=q25,xmiddle=median,xupper=q75,xmax=q75),
+               fill=NA,width=0.5,stat="identity")+
+  xlab("Median & IQR lifespan")+
+  theme_bw()+theme(legend.position="bottom")+
+  coord_cartesian(xlim=c(5,20))+scale_y_discrete(limits=rev)+
+  theme(legend.position = "bottom",
+        strip.text.x = element_text(margin = margin(1,0,1,0)))+
+  scale_x_continuous(minor_breaks=seq(5,20))+
+  facet_wrap(~Breed,ncol=1)
+print(plt.forest.median.top16.s)
+
 plt.forest.mean.top16.s<-ggplot(fit.top16.s.sum.df)+
   geom_errorbarh(aes(xmin=rmean-1.96*`se(rmean)`,
                      xmax=rmean+1.96*`se(rmean)`,
                      y=Sex),height=0)+
   geom_point(aes(x=rmean,y=Sex,shape="mean"))+
   xlab("Mean lifespan [CI]")+
-  scale_shape_discrete("")+
   coord_cartesian(xlim=c(5,20))+scale_y_discrete(limits=rev)+
-  theme_bw()+theme(legend.position = "bottom",
+  theme_bw()+theme(legend.position = "none",
                    strip.text.x = element_text(margin = margin(1,0,1,0)))+
   facet_wrap(~Breed,ncol=1)
 print(plt.forest.mean.top16.s)
@@ -104,6 +115,32 @@ print(plt.km.top16.s)
 ggsave(file.path(figfolder,"Supp.Fig.Survival_Top16_demographics.sex_effect.KM.pdf"),
        plt.km.top16.s,
        height=4,width=7,scale=1.6)
+
+## Summary Statistics for 16 Individual Breeds sexes combined
+surv.top16 <- Surv(time=survivalData.top16$first.age,
+                   time2=survivalData.top16$last.age,
+                   event=survivalData.top16$event, 
+                   type="counting")
+fit.top16 <- survfit(surv.top16 ~ Breed,data=survivalData.top16)
+fit.top16.sum <- summary(fit.top16)
+fit.top16.sum.df <- as.data.frame(fit.top16.sum$table)
+fit.top16.quant <- quantile(fit.top16)
+fit.top16.sum.df$q25 <- fit.top16.quant$quantile[,1]
+fit.top16.sum.df$q25.lcl <- fit.top16.quant$lower[,1]
+fit.top16.sum.df$q25.ucl <- fit.top16.quant$upper[,1]
+fit.top16.sum.df$q75 <- fit.top16.quant$quantile[,3]
+fit.top16.sum.df$q75.lcl <- fit.top16.quant$lower[,3]
+fit.top16.sum.df$q75.ucl <- fit.top16.quant$upper[,3]
+fit.top16.sum.df$stratum <- rownames(fit.top16.sum$table)
+strata<-trimws(unlist(strsplit(unlist(
+  strsplit(rownames(fit.top16.sum$table),",")),"=")))
+strata <- strata[seq(2,length(strata),2)]
+strata <- matrix(strata,ncol=1,byrow=TRUE)
+fit.top16.sum.df$Breed <-
+  factor(strata[,1],levels=levels(survivalData.top16$Breed))
+write.csv(fit.top16.sum.df,file.path(resultsfolder,
+                                       "Survival_Top16_demographics_bothsexes.SumStats.csv"))
+
 
 ## Test if Survival of Each 16 Individual Breeds is Consistent with its Assigned Size Class
 top16breeds.labels <- paste0(names(top16breeds)," (n=",top16breeds,")")
