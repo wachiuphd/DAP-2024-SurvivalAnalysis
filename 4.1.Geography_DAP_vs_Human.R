@@ -1,6 +1,7 @@
 library(tidyverse)
 library(survival)
-
+library(usdata)
+library(wCorr)
 datfolder <- "data"
 resultsfolder <- "results"
 figfolder <- "figures"
@@ -28,6 +29,11 @@ mr.st$MR.Ratio <- mr.st$MR/subset(mr.st,state.abbr=="WA")$MR
 hr.st <- left_join(hr.st,mr.st)
 
 lm.res <- lm(log(Dog.HR) ~ log(MR.Ratio),weights=1/Dog.SE^2,data=hr.st)
+# Cook's distance all < 0.5 
+summary(cooks.distance(lm.res))
+plot(lm.res,which=4) 
+plot(lm.res,which=5) 
+
 lm.res.coef <- coef(lm.res)
 lm.res.sum <- summary(lm.res)
 hr.mr.pval <- signif(last(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
