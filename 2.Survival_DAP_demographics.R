@@ -72,6 +72,8 @@ plt.b.km.s<-ggsurvplot_facet(fit.b.s,data=survivalData,
             data=cox.b.s.pvalues,hjust=0)+theme(legend.position = "bottom")
 
 print(plt.b.km.s)
+# Un-Reverse levels 
+levels(survivalData$Size_Class_at_HLES) <- rev(levels(survivalData$Size_Class_at_HLES))
 
 ######
 

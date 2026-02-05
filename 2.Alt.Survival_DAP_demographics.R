@@ -77,6 +77,8 @@ print(plt.a.km.s)
 ggsave(file.path(figfolder,"AltSupp.Fig.Survival_DAP_demographics.KM.pdf"),
        plt.a.km.s,
        height=4.5,width=6,scale=1.2)
+# Un-Reverse levels 
+levels(survivalData$Weight_Class_10KGBin_at_HLES) <- rev(levels(survivalData$Weight_Class_10KGBin_at_HLES))
 
 ######
 
