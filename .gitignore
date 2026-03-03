@@ -50,3 +50,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 Crude-Rates-By-Cohort-For-Daniel.R
+PrelimDataFigures.R
