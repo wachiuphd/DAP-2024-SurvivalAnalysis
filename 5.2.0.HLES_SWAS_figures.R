@@ -231,7 +231,7 @@ ggsave(file.path(figfolder,"Fig.4.HLES_Cox_Exp_Resp.pdf"),
        ggarrange(plt.cox.categorical.list[[1]],
                  plt.cox.categorical.list[[5]],
                  plt.cox.categorical.list[[21]],
-                 plt.cox.numeric.brisk.slow,ncol=2,nrow=2,labels="AUTO"),
+                 plt.cox.numeric.brisk.slow,ncol=2,nrow=2,labels="auto"),
        scale=1.5,height=4,width=6)
 
 ###### Clustering

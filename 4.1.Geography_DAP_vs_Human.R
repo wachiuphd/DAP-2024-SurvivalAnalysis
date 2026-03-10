@@ -239,7 +239,7 @@ plt.hr.le.5 <-
   annotation_logticks(side="l",scaled=FALSE)+
   theme(panel.grid.minor = element_blank(),panel.grid.major.x=element_blank())
 print(plt.hr.le.5)
-plt.hr.le.state.comb<-ggarrange(plt.hr.le.state,plt.hr.le.5,ncol=2,widths = c(2,1),labels = "AUTO")
+plt.hr.le.state.comb<-ggarrange(plt.hr.le.state,plt.hr.le.5,ncol=2,widths = c(2,1),labels = "auto")
 
 ggsave(file.path(figfolder,"SuppFig.Geoeffect_State_DogvsHumanLE.pdf"),
        plt.hr.le.state.comb,height=4,width=6,scale=1.25)

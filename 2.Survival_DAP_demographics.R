@@ -192,7 +192,7 @@ print(plt.forest.mean.b.s)
 
 
 ggsave(file.path(figfolder,"Fig.1.Survival_DAP_demographics.KM.forest.pdf"),
-       ggarrange(plt.b.km.s,plt.forest.median.b.s,ncol=1,labels = "AUTO"),
+       ggarrange(plt.b.km.s,plt.forest.median.b.s,ncol=1,labels = "auto"),
        height=7,width=6,scale=1.3)
 ggsave(file.path(figfolder,"Supp.Fig.Survival_DAP_demographics.forest.mean.pdf"),
        plt.forest.mean.b.s)

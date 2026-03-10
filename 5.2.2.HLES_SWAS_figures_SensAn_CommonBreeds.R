@@ -81,11 +81,11 @@ ggplot(pvals.mat,aes(y=Variable,x=name,fill=logvalue.trunc))+
 
 ggsave(file.path(figfolder,"Supp.Fig.SensAn.jpg"),dpi=600,
        ggarrange(plotlist=list(plt.sens.corr,plt.sens.sig,plt.sens.venn,plt.sens.q),
-                 labels = "AUTO",widths=c(1,2)),
+                 labels = "auto",widths=c(1,2)),
        height=5,width=6,scale=2.1)
 ggsave(file.path(figfolder,"Supp.Fig.SensAn.pdf"),dpi=600,
        ggarrange(plotlist=list(plt.sens.corr,plt.sens.sig,plt.sens.venn,plt.sens.q),
-          labels = "AUTO",widths=c(1,2)),
+          labels = "auto",widths=c(1,2)),
        height=5,width=6,scale=2.1)
 
 
