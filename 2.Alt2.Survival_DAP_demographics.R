@@ -45,6 +45,21 @@ fit.c.s.sum.df$Sex <-
 
 write.csv(fit.c.s.sum.df,file.path(resultsfolder,"Alt2Supp.Survival_DAP_demographics.SumStats.csv"))
 
+fit.b.s.sum.df <- read.csv(file.path(resultsfolder,"Survival_DAP_demographics.SumStats.csv"))
+
+plt.compare.mean <-
+ggplot(subset(data.frame(x=fit.b.s.sum.df$rmean,
+                  y=fit.c.s.sum.df$rmean,
+                  Sex=fit.b.s.sum.df$Sex,
+                  Size_Class_at_HLES=fit.b.s.sum.df$Size_Class_at_HLES,
+                  Breed_Class=fit.b.s.sum.df$Breed_Class),
+                  Breed_Class!="AKC-Recognized Breed"),aes(x,y))+
+  geom_point(aes(color=Size_Class_at_HLES,shape=Sex),size=3) + geom_abline(slope=1,intercept=0) + 
+  scale_color_viridis_d(option="turbo",end=0.85,direction=-1)+
+  xlab("Mean survival yrs for Mixed Breed\n(including non-AKC single breed)") +
+  ylab("Mean survival yrs for Mixed Breed\n(excluding non-AKC single breed)") +
+  theme_bw()+theme(legend.position = "top",legend.box = "vertical")
+
 ## Size effect by breed*sex strata
 
 cox.c.s <- coxph(surv ~ Size_Class_at_HLES + Breed_Class + Sex,data=survivalData)
@@ -120,6 +135,25 @@ ggsave(file.path(figfolder,"Alt2Supp.Fig.Survival_DAP_demographics.breed_effect.
        plt.c.km.breed,
        height=4,width=7,scale=1.6)
 
+cox.b.breed.pvalues <- read.csv(file.path(resultsfolder,"Survival_DAP_demographics_breedeffect-pvals.csv"))
+
+plt.compare.breed.pvalues <-
+  ggplot(data.frame(x=cox.b.breed.pvalues$log.rank.pvalue,
+                           y=cox.c.breed.pvalues$log.rank.pvalue,
+                           Sex=cox.b.breed.pvalues$Sex,
+                           Size_Class_at_HLES=cox.b.breed.pvalues$Size_Class_at_HLES),
+         aes(x,y))+
+  geom_point(aes(color=Size_Class_at_HLES,shape=Sex),size=3) + 
+  geom_abline(slope=1,intercept=0) + 
+  geom_hline(yintercept=0.05,linetype="dotted")+
+  geom_vline(xintercept=0.05,linetype="dotted")+
+  scale_x_log10(limits=c(NA,1),breaks=10^seq(-12,0,2)) + 
+  scale_y_log10(limits=c(NA,1),breaks=10^seq(-12,0,2))+
+  scale_color_viridis_d(option="turbo",end=0.85,direction=-1)+
+  xlab("Breed effect log rank p-value\n(including non-AKC single breed)") +
+  ylab("Breed effect log rank p-value\n(excluding non-AKC single breed)") +
+  theme_bw()+theme(legend.position = "top",legend.box = "vertical")
+
 ######
 
 cox.c.sex.pvalues <- data.frame()
@@ -187,3 +221,6 @@ ggsave(file.path(figfolder,"Alt2Supp.Fig.Survival_DAP_demographics.forest.median
 ggsave(file.path(figfolder,"Alt2Supp.Fig.Survival_DAP_demographics.forest.mean.pdf"),
        plt.forest.mean.c.s)
 
+ggsave(file.path(figfolder,"Alt2Supp.Fig.Compare_with_main_analysis.pdf"),
+       ggarrange(plt.compare.mean,plt.compare.breed.pvalues,
+                 common.legend = TRUE),height=4,width=7,scale=1.2)
