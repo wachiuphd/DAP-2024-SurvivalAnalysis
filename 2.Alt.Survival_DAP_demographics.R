@@ -154,24 +154,6 @@ ggsave(file.path(figfolder,"AltSupp.Fig.Survival_DAP_demographics.sex_effect.pdf
 
 #### 
 
-# plt.forest.median.a.s<-ggplot(fit.a.s.sum.df)+
-#   geom_errorbarh(aes(xmin=`0.95LCL`,xmax=`0.95UCL`,
-#                      y=interaction(Sex,Breed_Class),color=Weight_Class_10KGBin_at_HLES),height=0.05)+
-#   geom_errorbarh(aes(xmin=`q25.lcl`,xmax=`q25.ucl`,
-#                      y=interaction(Sex,Breed_Class),color=Weight_Class_10KGBin_at_HLES),height=0)+
-#   geom_errorbarh(aes(xmin=`q75.lcl`,xmax=`q75.ucl`,
-#                      y=interaction(Sex,Breed_Class),color=Weight_Class_10KGBin_at_HLES),height=0)+
-#   geom_point(aes(x=median,y=interaction(Sex,Breed_Class),color=Weight_Class_10KGBin_at_HLES,shape="median"))+
-#   geom_point(aes(x=q25,y=interaction(Sex,Breed_Class),color=Weight_Class_10KGBin_at_HLES,shape="IQR"))+
-#   geom_point(aes(x=q75,y=interaction(Sex,Breed_Class),color=Weight_Class_10KGBin_at_HLES,shape="IQR"))+
-#   xlab("Median & IQR lifespan [CI]")+
-#   scale_shape_discrete("",limits=rev)+scale_color_viridis_d(option="turbo",end=0.85)+
-#   guides(color="none")+theme_bw()+theme(legend.position="bottom")+
-#   coord_cartesian(xlim=c(5,20))+scale_y_discrete(limits=rev)+
-#   scale_x_continuous(minor_breaks=seq(5,20))+
-#   facet_wrap(~Weight_Class_10KGBin_at_HLES ,ncol=1)
-# print(plt.forest.median.a.s)
-
 plt.forest.median.a.s<-ggplot(fit.a.s.sum.df,aes(y=interaction(Sex,Breed_Class)))+
   geom_boxplot(aes(xmin=q25,xlower=q25,xmiddle=median,xupper=q75,xmax=q75,
                    color=Weight_Class_10KGBin_at_HLES),fill=NA,width=0.5,stat="identity")+
