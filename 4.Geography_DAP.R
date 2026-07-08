@@ -7,6 +7,7 @@ library(dplyr)
 library(viridisLite)
 library(usdata)
 library(wCorr)
+library(emmeans)
 source("ggforest2.R")
 datfolder <- "data"
 resultsfolder <- "results"
@@ -205,9 +206,9 @@ hrplt.cd <- ggarrange(
   ncol=1)
 
 hrplt.st <- ggarrange(
-  ggforest2(cox.geo.unadj.st,data=survivalData,main="Unadjusted Hazard Ratio",xrange=2,
+  ggforest2(cox.geo.unadj.st,data=survivalData,main="Unadjusted Hazard Ratio\n(relative to mean across states)",xrange=2,
             reference_free = TRUE),
-  ggforest2(cox.geo.adj.st,data=survivalData,main="Adjusted Hazard Ratio",xrange=2,
+  ggforest2(cox.geo.adj.st,data=survivalData,main="Adjusted Hazard Ratio\n(relative to mean across states)",xrange=2,
             reference_free = TRUE),
   ncol=2)
 

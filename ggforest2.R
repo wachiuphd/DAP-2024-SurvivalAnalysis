@@ -20,51 +20,53 @@ ggforest2 <- function (model, data = NULL, main = "Hazard ratio",
     ## VERIFY #1 -----------------------------------------------------------
     ## reference_free assumes a SINGLE term of interest. If your model has
     ## more than one non-strata covariate, only the first is reparameterized.
-    ## Your model (state + strata(...)) has exactly one term, so this is fine,
-    ## but the warning guards against silent misuse.
     if (length(terms) != 1L)
       warning("reference_free assumes a single term of interest; using the first: ",
               names(terms)[1])
     rf_var <- names(terms)[1]
     
-    em    <- emmeans::emmeans(model, specs = rf_var, weights = emm_weights)
-    em.df <- as.data.frame(summary(em, infer = c(TRUE, TRUE)))  # CIs + p vs. mean
+    em <- emmeans::emmeans(model, specs = rf_var, weights = emm_weights)
+    
+    ## CHANGED: effect contrasts = deviations from the GRAND MEAN across all
+    ## levels. This gives EVERY level (incl. the former reference, e.g. WA)
+    ## a genuine estimate, SE, CI, and p-value -- no level is pinned to 0.
+    ## (Plain emmeans on a coxph returns log-HRs relative to the reference,
+    ##  which zeroes WA; effect contrasts fix that.)
+    emc   <- emmeans::contrast(em, method = "eff", infer = c(TRUE, TRUE))
+    em.df <- as.data.frame(emc)
     
     ## VERIFY #2 -----------------------------------------------------------
-    ## Level-string matching. Downstream, ggforest2 matches coefficients to
-    ## factor levels via `inds = paste0(var, level)`, e.g. "stateWA" [1].
-    ## emmeans usually returns the BARE level ("WA"), so paste0(rf_var, lev)
-    ## should reproduce "stateWA". CONFIRM with: head(em.df) and check the
-    ## column named `rf_var`. If emmeans returns "state WA" or similar,
-    ## adjust the paste0() below (e.g., strip spaces) or `inds` will not match
-    ## and toShow will be all NA.
-    lev <- as.character(em.df[[rf_var]])
+    ## contrast() labels each row in a `contrast` column like "WA effect".
+    ## Strip the " effect" suffix to recover the bare level ("WA") so that
+    ## paste0(rf_var, lev) reproduces "stateWA" to match `inds` downstream.
+    lev <- sub(" effect$", "", as.character(em.df$contrast))
     
     ## VERIFY #3 -----------------------------------------------------------
-    ## Column names from emmeans: expect emmean, SE, lower.CL, upper.CL, and
-    ## (with infer=TRUE) p.value. Older/newer emmeans versions may differ.
-    ## CONFIRM names(em.df) contains "lower.CL","upper.CL","p.value".
+    ## contrast() on a coxph returns asymptotic CI names (asymp.LCL/UCL).
+    ## Normalize to lower.CL/upper.CL so the data.frame() below is stable
+    ## across emmeans variants.
+    if (!"lower.CL" %in% names(em.df) && "asymp.LCL" %in% names(em.df)) {
+      names(em.df)[names(em.df) == "asymp.LCL"] <- "lower.CL"
+      names(em.df)[names(em.df) == "asymp.UCL"] <- "upper.CL"
+    }
+    
     coef <- data.frame(
       term      = paste0(rf_var, lev),   # must match `inds` format, see VERIFY #2
-      estimate  = em.df$emmean,          # log-HR deviation from overall mean
+      estimate  = em.df$estimate,        # CHANGED: contrast() uses `estimate`, not `emmean`
       conf.low  = em.df$lower.CL,
       conf.high = em.df$upper.CL,
       ## VERIFY #4 -------------------------------------------------------
-      ## p.value here tests each state against the OVERALL MEAN (the centering
-      ## point), which is the correct null for a reference-free plot and
-      ## matches the dashed line at HR = 1. The stars in the plot therefore
-      ## mean "differs from the overall mean", NOT "differs from a reference".
-      ## Reflect this in your caption.
+      ## p.value tests each level against the OVERALL MEAN (the centering
+      ## point / dashed line at HR = 1). Stars mean "differs from the overall
+      ## mean", NOT "differs from a reference". Reflect this in your caption.
       p.value   = if ("p.value" %in% names(em.df)) em.df$p.value else NA_real_,
       stringsAsFactors = FALSE
     )
     rownames(coef) <- coef$term
     
     ## VERIFY #5 -----------------------------------------------------------
-    ## No NA coefficients here: emmeans returns ALL levels (incl. the former
-    ## reference state, e.g. WA) with estimates + CIs. Consequently the
-    ## refLabel/"reference" row logic below never triggers, and NO state is
-    ## dropped or shown as a reference. This is the intended behavior.
+    ## No NA coefficients: effect contrasts return ALL levels (incl. WA) with
+    ## estimates + CIs. The refLabel/"reference" logic below never triggers.
   }
   
   gmodel <- glance(model)
@@ -143,6 +145,7 @@ ggforest2 <- function (model, data = NULL, main = "Hazard ratio",
   x_annotate <- seq_len(nrow(toShowExpClean))
   annot_size_mm <- fontsize * as.numeric(grid::convertX(unit(theme_get()$text$size, 
                                                        "pt"), "mm"))
+
   p <- ggplot(toShowExpClean, aes(seq_along(var), exp(estimate))) + 
     geom_rect(aes(xmin = seq_along(var) - 0.5, xmax = seq_along(var) + 
                     0.5, ymin = exp(rangeplot[1]), ymax = exp(rangeplot[2]), 
