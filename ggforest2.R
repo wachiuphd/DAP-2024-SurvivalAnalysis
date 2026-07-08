@@ -1,29 +1,87 @@
-ggforest2 <- function (model, data = NULL, main = "Hazard ratio", 
-                       cpositions = c(0.02, 0.22, 0.4), fontsize = 0.7, 
+ggforest2 <- function (model, data = NULL, main = "Hazard ratio",
+                       cpositions = c(0.02, 0.22, 0.4), fontsize = 0.7,
                        refLabel = "reference", noDigits = 2,
-                       xrange = NULL) 
+                       xrange = NULL,
+                       reference_free = FALSE,      # NEW: TRUE = deviations from overall mean
+                       emm_weights = "cells")       # NEW: "cells" (counts) or "equal"
 {
   conf.high <- conf.low <- estimate <- NULL
   stopifnot(inherits(model, "coxph"))
   data <- survminer:::.get_data(model, data = data)
   terms <- attr(model$terms, "dataClasses")[-1]
-  coef <- as.data.frame(tidy(model, conf.int = TRUE))
+  
+  # --- coefficient table: standard (reference) OR reference-free (emmeans) ---
+  if (!reference_free) {
+    # ORIGINAL PATH: coefficients read directly off the model via tidy() [1]
+    coef <- as.data.frame(tidy(model, conf.int = TRUE))
+    rownames(coef) <- gsub(coef$term, pattern = "`", replacement = "")
+    
+  } else {
+    ## VERIFY #1 -----------------------------------------------------------
+    ## reference_free assumes a SINGLE term of interest. If your model has
+    ## more than one non-strata covariate, only the first is reparameterized.
+    ## Your model (state + strata(...)) has exactly one term, so this is fine,
+    ## but the warning guards against silent misuse.
+    if (length(terms) != 1L)
+      warning("reference_free assumes a single term of interest; using the first: ",
+              names(terms)[1])
+    rf_var <- names(terms)[1]
+    
+    em    <- emmeans::emmeans(model, specs = rf_var, weights = emm_weights)
+    em.df <- as.data.frame(summary(em, infer = c(TRUE, TRUE)))  # CIs + p vs. mean
+    
+    ## VERIFY #2 -----------------------------------------------------------
+    ## Level-string matching. Downstream, ggforest2 matches coefficients to
+    ## factor levels via `inds = paste0(var, level)`, e.g. "stateWA" [1].
+    ## emmeans usually returns the BARE level ("WA"), so paste0(rf_var, lev)
+    ## should reproduce "stateWA". CONFIRM with: head(em.df) and check the
+    ## column named `rf_var`. If emmeans returns "state WA" or similar,
+    ## adjust the paste0() below (e.g., strip spaces) or `inds` will not match
+    ## and toShow will be all NA.
+    lev <- as.character(em.df[[rf_var]])
+    
+    ## VERIFY #3 -----------------------------------------------------------
+    ## Column names from emmeans: expect emmean, SE, lower.CL, upper.CL, and
+    ## (with infer=TRUE) p.value. Older/newer emmeans versions may differ.
+    ## CONFIRM names(em.df) contains "lower.CL","upper.CL","p.value".
+    coef <- data.frame(
+      term      = paste0(rf_var, lev),   # must match `inds` format, see VERIFY #2
+      estimate  = em.df$emmean,          # log-HR deviation from overall mean
+      conf.low  = em.df$lower.CL,
+      conf.high = em.df$upper.CL,
+      ## VERIFY #4 -------------------------------------------------------
+      ## p.value here tests each state against the OVERALL MEAN (the centering
+      ## point), which is the correct null for a reference-free plot and
+      ## matches the dashed line at HR = 1. The stars in the plot therefore
+      ## mean "differs from the overall mean", NOT "differs from a reference".
+      ## Reflect this in your caption.
+      p.value   = if ("p.value" %in% names(em.df)) em.df$p.value else NA_real_,
+      stringsAsFactors = FALSE
+    )
+    rownames(coef) <- coef$term
+    
+    ## VERIFY #5 -----------------------------------------------------------
+    ## No NA coefficients here: emmeans returns ALL levels (incl. the former
+    ## reference state, e.g. WA) with estimates + CIs. Consequently the
+    ## refLabel/"reference" row logic below never triggers, and NO state is
+    ## dropped or shown as a reference. This is the intended behavior.
+  }
+  
   gmodel <- glance(model)
+  
   allTerms <- lapply(seq_along(terms), function(i) {
     var <- names(terms)[i]
-    if(var %in% colnames(data)) {
+    if (var %in% colnames(data)) {
       if (terms[i] %in% c("factor", "character")) {
-        adf <- as.data.frame(table(data[, var]))
+        adf <- as.data.frame(table(data[, var]))   # N per level still correct [1]
         cbind(var = var, adf, pos = 1:nrow(adf))
       }
       else if (terms[i] == "numeric") {
-        data.frame(var = var, Var1 = "", Freq = nrow(data), 
-                   pos = 1)
+        data.frame(var = var, Var1 = "", Freq = nrow(data), pos = 1)
       }
       else {
         vars = grep(paste0("^", var, "*."), coef$term, value = TRUE)
-        data.frame(var = vars, Var1 = "", Freq = nrow(data), 
-                   pos = seq_along(vars))
+        data.frame(var = vars, Var1 = "", Freq = nrow(data), pos = seq_along(vars))
       }
     } else {
       message(var, "is not found in data columns, and will be skipped.")
@@ -31,8 +89,16 @@ ggforest2 <- function (model, data = NULL, main = "Hazard ratio",
   })
   allTermsDF <- do.call(rbind, allTerms)
   colnames(allTermsDF) <- c("var", "level", "N", "pos")
-  inds <- apply(allTermsDF[, 1:2], 1, paste0, collapse = "")
-  rownames(coef) <- gsub(coef$term, pattern = "`", replacement = "")
+  inds <- apply(allTermsDF[, 1:2], 1, paste0, collapse = "")   # e.g. "stateWA" [1]
+  
+  ## VERIFY #6 -------------------------------------------------------------
+  ## Order alignment. allTermsDF is built from table(data[,var]), which is in
+  ## FACTOR-LEVEL order; coef[inds, ] then reorders coef to match. As long as
+  ## VERIFY #2 holds (level strings match), this join is correct even if
+  ## emmeans returned rows in a different order. If toShow shows NAs, the
+  ## mismatch is almost always the paste0 format in VERIFY #2.
+  
+  # ----- everything below is UNCHANGED from your original function [1] -----
   toShow <- cbind(allTermsDF, coef[inds, ])[, c("var", "level", 
                                                 "N", "p.value", "estimate", "conf.low", "conf.high", 
                                                 "pos")]
