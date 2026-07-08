@@ -205,8 +205,10 @@ hrplt.cd <- ggarrange(
   ncol=1)
 
 hrplt.st <- ggarrange(
-  ggforest2(cox.geo.unadj.st,data=survivalData,main="Unadjusted Hazard Ratio",xrange=2),
-  ggforest2(cox.geo.adj.st,data=survivalData,main="Adjusted Hazard Ratio",xrange=2),
+  ggforest2(cox.geo.unadj.st,data=survivalData,main="Unadjusted Hazard Ratio",xrange=2,
+            reference_free = TRUE),
+  ggforest2(cox.geo.adj.st,data=survivalData,main="Adjusted Hazard Ratio",xrange=2,
+            reference_free = TRUE),
   ncol=2)
 
 ggsave(file.path(figfolder,"Supp.Fig.Geoeffect_homearea.HR.pdf"),
