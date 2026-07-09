@@ -2,6 +2,7 @@ library(tidyverse)
 library(survival)
 library(usdata)
 library(wCorr)
+library(emmeans)
 datfolder <- "data"
 resultsfolder <- "results"
 figfolder <- "figures"
@@ -12,68 +13,101 @@ surv <- Surv(time=survivalData$first.age,
              event=survivalData$event,
              type='counting')
 
-###### Correlation between hazard ratios by states and age-adjusted mortality rate
 
-hr.st <- exp(cbind(as.data.frame(cox.geo.adj.st$coefficients),
-                   as.data.frame(confint(cox.geo.adj.st))))
-hr.st$Dog.SE <- log(hr.st$`97.5 %`/hr.st$`2.5 %`)/(2*qnorm(0.975)) # used for weights
-names(hr.st)[1] <- "Dog.HR"
-hr.st$state.abbr <- gsub("state","",rownames(hr.st))
+###### Reference-free dog estimates (all 51 states, incl. WA) ######
+## Use effect contrasts (method = "eff") = deviations from the GRAND MEAN.
+## This gives EVERY state (incl. WA) a genuine estimate, SE, CI, and p-value
+## -- no level pinned to 0. Plain emmeans on a coxph returns log-HRs relative
+## to the reference, which zeroes WA; effect contrasts fix that. [1]
+em    <- emmeans::emmeans(cox.geo.adj.st, specs = ~ state, weights = "cells")
+emc   <- emmeans::contrast(em, method = "eff", infer = c(TRUE, TRUE))
+em.df <- as.data.frame(emc)
 
-mr.st <- subset(read.csv(file.path(datfolder,"HDPulse_data_export.csv"),skip=4),
-                (FIPS > 0 ) & (!is.na(FIPS)))
+## Confirm the level-string format before trusting the join.
+## Effect contrasts label rows like "WA effect"; emmeans usually returns the
+## BARE level, so strip the " effect" suffix and any "state" prefix. [1]
+print(head(em.df))
+
+clean_lev <- function(x) {
+  x <- as.character(x)
+  x <- gsub(" effect$", "", x)   # effect-contrast suffix
+  x <- gsub("^state", "", x)     # in case a term prefix survives
+  trimws(x)
+}
+
+hr.st <- data.frame(
+  state.abbr = clean_lev(em.df$contrast),
+  logHR      = em.df$estimate,   # deviation from count-weighted overall mean
+  Dog.SE     = em.df$SE,         # SE of the effect contrast (non-zero for WA)
+  stringsAsFactors = FALSE)
+hr.st$Dog.HR <- exp(hr.st$logHR)
+
+## Sanity checks: all 51 states, WA now non-degenerate, no dup/empty labels
+stopifnot(nrow(hr.st) == 51)
+stopifnot(!any(hr.st$state.abbr == "" | is.na(hr.st$state.abbr)))
+stopifnot(!any(duplicated(hr.st$state.abbr)))
+stopifnot(all(hr.st$Dog.SE > 0))          # <-- WA must no longer be 0 SE
+stopifnot(all(is.finite(1 / hr.st$Dog.SE^2)))  # no infinite weights
+
+# count weights per state (to center the human axis consistently)
+n_by_state <- as.data.frame(table(gsub("^state", "", as.character(survivalData$state))))
+names(n_by_state) <- c("state.abbr", "n_dogs")
+n_by_state$state.abbr <- as.character(n_by_state$state.abbr)
+
+###### Human mortality -> reference-free (mean-centered on log scale) ######
+mr.st <- subset(read.csv(file.path(datfolder, "HDPulse_data_export.csv"), skip = 4),
+                (FIPS > 0) & (!is.na(FIPS)))
 mr.st$state.abbr <- state2abbr(mr.st$State)
-mr.st <- subset(mr.st,state.abbr %in% c("WA",hr.st$state.abbr))
-names(mr.st)[3] <- "MR"
-mr.st$MR.Ratio <- mr.st$MR/subset(mr.st,state.abbr=="WA")$MR
-hr.st <- left_join(hr.st,mr.st)
+names(mr.st)[3]  <- "MR"
+mr.st <- subset(mr.st, state.abbr %in% hr.st$state.abbr)
+mr.st <- left_join(mr.st, n_by_state, by = "state.abbr")
+stopifnot(!any(is.na(mr.st$n_dogs)))
 
-lm.res <- lm(log(Dog.HR) ~ log(MR.Ratio),weights=1/Dog.SE^2,data=hr.st)
-# Cook's distance all < 0.5 
-summary(cooks.distance(lm.res))
-plot(lm.res,which=4) 
-plot(lm.res,which=5) 
+mr_logmean      <- weighted.mean(log(mr.st$MR), w = mr.st$Average.Annual.Count)
+mr.st$logMR.dev <- log(mr.st$MR) - mr_logmean
+mr.st$MR.dev    <- exp(mr.st$logMR.dev)   # ratio scale, centered at 1
 
-lm.res.coef <- coef(lm.res)
-lm.res.sum <- summary(lm.res)
-hr.mr.pval <- signif(last(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
-hr.mr.slope <- signif(first(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
-hr.mr.r <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Pearson"),2)
-hr.mr.rho <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Spearman"),2)
+###### Join + checks ######
+hr.st <- left_join(hr.st,
+                   mr.st[, c("state.abbr", "logMR.dev", "MR.dev")],
+                   by = "state.abbr")
+stopifnot(!any(is.na(hr.st$logMR.dev)))
+stopifnot(nrow(hr.st) == 51)
 
-# plt.hr.mr.state <-
-#   ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
-#   geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
-#   geom_errorbar(aes(ymin=`2.5 %`,ymax=`97.5 %`),color="grey50")+
-#   geom_label(aes(label=state.abbr),alpha=0.7)+
-#   scale_x_log10(breaks=seq(0.8,1.6,0.2))+
-#   scale_y_log10(breaks=seq(0.4,2.0,0.2))+#coord_cartesian(xlim=c(0.7,1.7),ylim=c(0.5,2))+
-#   theme_bw()+#coord_trans(x="log10",y="log10",xlim=c(0.4,2.1),ylim=c(0.4,2.1))+
-#   annotation_logticks(side="bl")+
-#   geom_smooth(aes(x=MR.Ratio,y=Dog.HR,weight=1/Dog.SE^2),method="lm")+
-#   annotate("text",x=0.8,y=2,label=bquote(italic(r) == .(hr.mr.r)*","~italic(rho) == .(hr.mr.rho)),hjust=0,vjust=1.5)+
-#   annotate("text",x=0.8,y=2,label=bquote(italic(p) == .(hr.mr.pval)),hjust=0,vjust=3)+
-#   annotate("text",x=0.8,y=2,label=bquote(slope == .(hr.mr.slope)),hjust=0,vjust=4.5)+
-#   xlab("Human Age-Adjusted Comparative Mortality Ratio (CMR) [2019-2023]")+
-#   ylab("Canine Demographics-Adjusted Mortality Hazard Ratio (HR)")+
-#   theme(panel.grid.minor = element_blank())
+###### Weighted regression + correlations (same variable throughout) ######
+lm.res <- lm(logHR ~ logMR.dev, weights = 1/Dog.SE^2, data = hr.st)
+summary(cooks.distance(lm.res)); plot(lm.res, which = 4); plot(lm.res, which = 5)
+# Result: Cook's distance all < 0.5 
 
-plt.hr.mr.state <- ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
-  geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
-  geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
-  geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
-  scale_x_log10(breaks=seq(0.6,1.6,0.2))+
-  scale_y_log10(breaks=seq(0.6,1.6,0.2))+coord_cartesian(xlim=c(0.75,1.5),ylim=c(0.6,1.4))+
-  scale_size_continuous(range=c(0.01,6))+
-  theme_bw()+#coord_trans(x="log10",y="log10",xlim=c(0.4,2.1),ylim=c(0.4,2.1))+
-  annotation_logticks(side="bl")+
-  geom_smooth(aes(x=MR.Ratio,y=Dog.HR,weight=1/Dog.SE^2),method="lm")+
-  annotate("text",x=0.75,y=1.4,label=bquote(italic(r) == .(hr.mr.r)*","~italic(rho) == .(hr.mr.rho)),hjust=0,vjust=1.5)+
-  annotate("text",x=0.75,y=1.4,label=bquote(italic(p) == .(hr.mr.pval)),hjust=0,vjust=3)+
-  annotate("text",x=0.75,y=1.4,label=bquote(slope == .(hr.mr.slope)),hjust=0,vjust=4.5)+
-  xlab("Human Age-Adjusted Comparative Mortality Ratio (CMR) [2019-2023]")+
-  ylab("Canine Demographics-Adjusted Mortality Hazard Ratio (HR)")+
-  theme(panel.grid.minor = element_blank(),legend.position = "none")
+lm.sum      <- summary(lm.res)
+hr.mr.pval  <- signif(lm.sum$coefficients["logMR.dev", 4], 2)
+hr.mr.slope <- signif(lm.sum$coefficients["logMR.dev", 1], 2)
+
+hr.mr.r   <- signif(weightedCorr(hr.st$logHR, hr.st$logMR.dev,
+                                 weights = 1/hr.st$Dog.SE^2, method = "Pearson"), 2)
+hr.mr.rho <- signif(weightedCorr(hr.st$logHR, hr.st$logMR.dev,
+                                 weights = 1/hr.st$Dog.SE^2, method = "Spearman"), 2)
+
+###### Plot (both axes reference-free, centered at 1) ######
+plt.hr.mr.state <- ggplot(hr.st, aes(x = MR.dev, y = Dog.HR)) +
+  geom_hline(yintercept = 1) + geom_vline(xintercept = 1) +
+  geom_point(aes(size = 1/Dog.SE^2), shape = 21, stroke = 1.5, color = "grey33") +
+  geom_text(aes(label = state.abbr), hjust = 1.3, vjust = -0.5, size = 3) +
+  scale_x_log10(breaks = seq(0.6, 1.6, 0.2)) +
+  scale_y_log10(breaks = seq(0.6, 1.6, 0.2)) +
+  scale_size_continuous(range = c(0.01, 6)) +
+  theme_bw() + annotation_logticks(side = "bl") +
+  geom_smooth(aes(x = MR.dev, y = Dog.HR, weight = 1/Dog.SE^2), method = "lm") +
+  annotate("text", x = 0.75, y = 1.4,
+           label = list(bquote(italic(r) == .(hr.mr.r) * "," ~ italic(rho) == .(hr.mr.rho))),
+           hjust = 0, vjust = 1.5, parse = FALSE) +
+  annotate("text", x = 0.75, y = 1.4,
+           label = list(bquote(italic(p) == .(hr.mr.pval))), hjust = 0, vjust = 3) +
+  annotate("text", x = 0.75, y = 1.4,
+           label = list(bquote(slope == .(hr.mr.slope))), hjust = 0, vjust = 4.5) +
+  xlab("Human Age-Adjusted Mortality Ratio\ndeviation from mean [2019-2023]") +
+  ylab("Canine Demographics-Adjusted Mortality Hazard Ratio\ndeviation from mean") +
+  theme(panel.grid.minor = element_blank(), legend.position = "none")
 print(plt.hr.mr.state)
 
 ggsave(file.path(figfolder,"Fig.2.Geoeffect_State_DogvsHumanMortRate.pdf"),
@@ -81,45 +115,59 @@ ggsave(file.path(figfolder,"Fig.2.Geoeffect_State_DogvsHumanMortRate.pdf"),
 
 ###### Sensitivity Analysis - Use only 2023 mortality rates
 
-hr.st <- exp(cbind(as.data.frame(cox.geo.adj.st$coefficients),
-                   as.data.frame(confint(cox.geo.adj.st))))
-hr.st$Dog.SE <- log(hr.st$`97.5 %`/hr.st$`2.5 %`)/(2*qnorm(0.975)) # used for weights
-names(hr.st)[1] <- "Dog.HR"
-hr.st$state.abbr <- gsub("state","",rownames(hr.st))
-
 mr23.st <- subset(read.csv(file.path(datfolder,"HDPulse_data_export-2023.csv"),skip=4),
                 (FIPS > 0 ) & (!is.na(FIPS)))
 mr23.st$state.abbr <- state2abbr(mr23.st$State)
-mr23.st <- subset(mr23.st,state.abbr %in% c("WA",hr.st$state.abbr))
 names(mr23.st)[3] <- "MR"
-mr23.st$MR.Ratio <- mr23.st$MR/subset(mr23.st,state.abbr=="WA")$MR
-hr.st <- left_join(hr.st,mr23.st)
+mr23.st <- subset(mr23.st,state.abbr %in% hr.st$state.abbr)
+mr23.st <- left_join(mr23.st, n_by_state, by = "state.abbr")
+stopifnot(!any(is.na(mr23.st$n_dogs)))
+mr23_logmean      <- weighted.mean(log(mr23.st$MR), w = mr23.st$Average.Annual.Count)
+mr23.st$logMR.dev <- log(mr23.st$MR) - mr23_logmean
+mr23.st$MR.dev    <- exp(mr23.st$logMR.dev)   # ratio scale, centered at 1
 
-lm.res <- lm(log(Dog.HR) ~ log(MR.Ratio),weights=1/Dog.SE^2,data=hr.st)
-lm.res.coef <- coef(lm.res)
-lm.res.sum <- summary(lm.res)
-hr.mr23.pval <- signif(last(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
-hr.mr23.slope <- signif(first(lm.res.sum$coefficients["log(MR.Ratio)",]),2)
-hr.mr23.r <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Pearson"),2)
-hr.mr23.rho <- signif(weightedCorr(log(hr.st$Dog.HR), log(hr.st$MR), weights = 1/hr.st$Dog.SE^2, method = "Spearman"),2)
+###### Join + checks ######
+hr23.st <- left_join(hr.st[, c("state.abbr", "logHR", "Dog.SE","Dog.HR")],
+                   mr23.st[, c("state.abbr", "logMR.dev", "MR.dev")],
+                   by = "state.abbr")
+stopifnot(!any(is.na(hr23.st$logMR.dev)))
+stopifnot(nrow(hr23.st) == 51)
 
-plt.hr.mr23.state <-
-  ggplot(hr.st,aes(x=MR.Ratio,y=Dog.HR))+
-  geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
-  geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
-  geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
-  scale_x_log10(breaks=seq(0.6,1.6,0.2))+
-  scale_y_log10(breaks=seq(0.6,1.6,0.2))+coord_cartesian(xlim=c(0.75,1.5),ylim=c(0.6,1.4))+
-  scale_size_continuous(range=c(0.01,6))+
-  theme_bw()+
-  annotation_logticks(side="bl")+
-  geom_smooth(aes(x=MR.Ratio,y=Dog.HR,weight=1/Dog.SE^2),method="lm")+
-  annotate("text",x=0.75,y=1.4,label=bquote(italic(r) == .(hr.mr23.r)*","~italic(rho) == .(hr.mr23.rho)),hjust=0,vjust=1.5)+
-  annotate("text",x=0.75,y=1.4,label=bquote(italic(p) == .(hr.mr23.pval)),hjust=0,vjust=3)+
-  annotate("text",x=0.75,y=1.4,label=bquote(slope == .(hr.mr23.slope)),hjust=0,vjust=4.5)+
-  xlab("Human Age-Adjusted Comparative Mortality Ratio (CMR) [2023]")+
-  ylab("Canine Demographics-Adjusted Mortality Hazard Ratio (HR)")+
-  theme(panel.grid.minor = element_blank(),legend.position = "none")
+###### Weighted regression + correlations (same variable throughout) ######
+lm23.res <- lm(logHR ~ logMR.dev, weights = 1/Dog.SE^2, data = hr23.st)
+summary(cooks.distance(lm23.res)); plot(lm23.res, which = 4); plot(lm23.res, which = 5)
+# Result: Cook's distance all < 0.5 
+
+lm23.sum      <- summary(lm23.res)
+hr.mr23.pval  <- signif(lm23.sum$coefficients["logMR.dev", 4], 2)
+hr.mr23.slope <- signif(lm23.sum$coefficients["logMR.dev", 1], 2)
+
+hr.mr23.r   <- signif(weightedCorr(hr23.st$logHR, hr23.st$logMR.dev,
+                                 weights = 1/hr.st$Dog.SE^2, method = "Pearson"), 2)
+hr.mr23.rho <- signif(weightedCorr(hr23.st$logHR, hr23.st$logMR.dev,
+                                 weights = 1/hr.st$Dog.SE^2, method = "Spearman"), 2)
+
+###### Plot (both axes reference-free, centered at 1) ######
+plt.hr.mr23.state <- ggplot(hr23.st, aes(x = MR.dev, y = Dog.HR)) +
+  geom_hline(yintercept = 1) + geom_vline(xintercept = 1) +
+  geom_point(aes(size = 1/Dog.SE^2), shape = 21, stroke = 1.5, color = "grey33") +
+  geom_text(aes(label = state.abbr), hjust = 1.3, vjust = -0.5, size = 3) +
+  scale_x_log10(breaks = seq(0.6, 1.6, 0.2)) +
+  scale_y_log10(breaks = seq(0.6, 1.6, 0.2)) +
+  scale_size_continuous(range = c(0.01, 6)) +
+  theme_bw() + annotation_logticks(side = "bl") +
+  geom_smooth(aes(x = MR.dev, y = Dog.HR, weight = 1/Dog.SE^2), method = "lm") +
+  annotate("text", x = 0.75, y = 1.4,
+           label = list(bquote(italic(r) == .(hr.mr23.r) * "," ~ italic(rho) == .(hr.mr23.rho))),
+           hjust = 0, vjust = 1.5, parse = FALSE) +
+  annotate("text", x = 0.75, y = 1.4,
+           label = list(bquote(italic(p) == .(hr.mr23.pval))), hjust = 0, vjust = 3) +
+  annotate("text", x = 0.75, y = 1.4,
+           label = list(bquote(slope == .(hr.mr23.slope))), hjust = 0, vjust = 4.5) +
+  xlab("Human Age-Adjusted Mortality Ratio\ndeviation from mean [2023]") +
+  ylab("Canine Demographics-Adjusted Mortality Hazard Ratio\ndeviation from mean") +
+  theme(panel.grid.minor = element_blank(), legend.position = "none")
+
 print(plt.hr.mr23.state)
 
 ggsave(file.path(figfolder,"SuppFig.Geoeffect_State_DogvsHuman2023MortRate.pdf"),
@@ -127,62 +175,49 @@ ggsave(file.path(figfolder,"SuppFig.Geoeffect_State_DogvsHuman2023MortRate.pdf")
 
 ###### Correlation between hazard ratios by states and US life expectancy
 
-hr.st <- exp(cbind(as.data.frame(cox.geo.adj.st$coefficients),
-                   as.data.frame(confint(cox.geo.adj.st))))
-hr.st$Dog.SE <- log(hr.st$`97.5 %`/hr.st$`2.5 %`)/(2*qnorm(0.975)) # used for weights
-names(hr.st)[1] <- "Dog.HR"
-hr.st$state.abbr <- gsub("state","",rownames(hr.st))
-# hr.st[nrow(hr.st)+1,] <- data.frame(1,NA,NA,NA,"WA")
-
 le.st <- read.csv(file.path(datfolder,"U.S._State_Life_Expectancy_by_Sex__2021.csv"))
 le.st$state.abbr <- state2abbr(le.st$State)
 le.st <- subset(le.st,Sex=="Total")
-le.st$LE.Ratio <- log(le.st$LE/subset(le.st,state.abbr=="WA")$LE)
-hr.st <- left_join(hr.st,le.st)
+hr.le.st <- left_join(hr.st[, c("state.abbr", "logHR", "Dog.SE","Dog.HR")],
+                     le.st,
+                     by = "state.abbr")
 
-lm.res <- lm(Dog.HR ~ LE,weights=1/Dog.SE^2,data=subset(hr.st,!is.na(Dog.SE)))
-lm.res.coef <- coef(lm.res)
-lm.res.sum <- summary(lm.res)
-hr.le.pval <- signif(last(lm.res.sum$coefficients["LE",]),2)
-hr.le.slope <- signif(first(lm.res.sum$coefficients["LE",]),2)
-hr.le.r <- signif(weightedCorr(hr.st$Dog.HR, hr.st$LE, weights = 1/hr.st$Dog.SE^2, method = "Pearson"),2)
-hr.le.rho <- signif(weightedCorr(hr.st$Dog.HR, hr.st$LE, weights = 1/hr.st$Dog.SE^2, method = "Spearman"),2)
+###### Weighted regression + correlations (same variable throughout) ######
+lm.le.res <- lm(Dog.HR ~ LE,weights=1/Dog.SE^2,data=hr.le.st)
+summary(cooks.distance(lm.le.res)); plot(lm.le.res, which = 4); plot(lm.le.res, which = 5)
+# Result: Cook's distance all < 0.5 
+
+lm.le.sum      <- summary(lm.le.res)
+hr.le.pval  <- signif(lm.le.sum$coefficients["LE", 4], 2)
+hr.le.slope <- signif(lm.le.sum$coefficients["LE", 1], 2)
+hr.le.r   <- signif(weightedCorr(hr.le.st$Dog.HR, hr.le.st$LE,
+                                   weights = 1/hr.st$Dog.SE^2, method = "Pearson"), 2)
+hr.le.rho <- signif(weightedCorr(hr.le.st$Dog.HR, hr.le.st$LE,
+                                   weights = 1/hr.st$Dog.SE^2, method = "Spearman"), 2)
 
 plt.hr.le.state <-
-  ggplot(hr.st,aes(x=LE,y=Dog.HR))+
+  ggplot(hr.le.st,aes(x=LE,y=Dog.HR))+
   geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
   geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
   scale_x_continuous(breaks=seq(65,85))+
-  theme_bw()+coord_trans(y="log10",ylim=c(0.5,2.1))+
+  theme_bw()+coord_transform(y="log10",ylim=c(0.5,2.1))+
   annotation_logticks(side="l",scaled=FALSE)+
   geom_smooth(aes(weight=1/Dog.SE^2),method="lm")+
   geom_abline(slope=-1/78.2,intercept=2,color="red",linetype="dashed")+
   annotate("text",x=71,y=2,label="Linear fit to state-level HRs",hjust=0,vjust=0)+
-  annotate("text",x=71,y=2,label=bquote(italic(r) == .(hr.le.r)*","~italic(rho) == .(hr.le.rho)),hjust=0,vjust=1.5)+
-  annotate("text",x=71,y=2,label=bquote(italic(p) == .(hr.le.pval)),hjust=0,vjust=3)+
-  annotate("text",x=71,y=2,label=bquote(slope == .(hr.le.slope)),hjust=0,vjust=4.5)+
+  annotate("text", x = 71, y = 2,
+           label = list(bquote(italic(r) == .(hr.le.r) * "," ~ italic(rho) == .(hr.le.rho))),
+           hjust = 0, vjust = 1.5, parse = FALSE) +
+  annotate("text", x = 71, y = 2,
+           label = list(bquote(italic(p) == .(hr.le.pval))), hjust = 0, vjust = 3) +
+  annotate("text", x = 71, y = 2,
+           label = list(bquote(slope == .(hr.le.slope))), hjust = 0, vjust = 4.5) +
   xlab("Human Life Expectancy (yrs)\nby State in 2021")+
   ylab("Demographically Adjusted DAP Mortality Hazard Ratio (HR)")+
   theme(panel.grid.minor = element_blank(),legend.position = "none")
 print(plt.hr.le.state)
 
-hr.le.slope.rel <- signif(78.2*first(lm.res.sum$coefficients["LE",]),2)
-plt.hr.le.state.relative<-ggplot(hr.st,aes(x=LE/78.2,y=Dog.HR))+
-  geom_hline(yintercept=1)+geom_vline(xintercept = 1)+
-  geom_point(aes(size=1/Dog.SE^2),shape=21,stroke=1.5,color="grey33")+
-  geom_text(aes(label=state.abbr),hjust=1.3,vjust=-0.5,size=3)+
-  theme_bw()+theme(panel.grid = element_blank(),legend.position="none")+
-  coord_cartesian(xlim=c(0.9,1.05),ylim=c(0.6,1.4))+
-  geom_smooth(aes(weight=1/Dog.SE^2),method="lm")+
-  geom_abline(slope=-1,intercept=2,color="red",linetype="dashed")+
-  annotate("text",x=1.01,y=1.4,label=bquote(italic(r) == .(hr.le.r)),hjust=0,vjust=0)+
-  annotate("text",x=1.01,y=1.4,label=bquote(italic(rho) == .(hr.le.rho)),hjust=0,vjust=1.5)+
-  annotate("text",x=1.01,y=1.4,label=bquote(italic(p) == .(hr.le.pval)),hjust=0,vjust=3)+
-  annotate("text",x=1.01,y=1.4,label=bquote(slope == .(hr.le.slope.rel)),hjust=0,vjust=4.5)+
-  xlab("State Human Life Expectancy\nRelative to WA [78.2 years] in 2021")+
-  ylab("Demographically-Adjusted DAP Mortality\nHazard Ratio by State (Reference=WA)")
-
-print(plt.hr.le.state.relative)
+hr.le.slope.rel <- signif(78.2*first(lm.le.sum$coefficients["LE",]),2)
 
 #### Try using life expectancy as a continuous variable
 
@@ -227,10 +262,10 @@ plt.hr.le.5 <-
   annotate("text",x=0.5,y=2,label="human life expectancy",
            hjust=0,vjust=1.5)+
   annotate("text",x=0.5,y=2,label=
-             bquote(HR == .(hr.le.5.hr)~"["*.(hr.le.5.hr.lcl) - .(hr.le.5.hr.ucl)*"]"),
+             list(bquote(HR == .(hr.le.5.hr)~"["*.(hr.le.5.hr.lcl) - .(hr.le.5.hr.ucl)*"]")),
            hjust=0,vjust=3)+
   annotate("text",x=0.5,y=2,label=
-             bquote(italic(p) == .(hr.le.5.pval)),
+             list(bquote(italic(p) == .(hr.le.5.pval))),
            hjust=0,vjust=4.5)+
   ylab("")+
   xlab("per 5 yr increase in\nHuman Life Expectancy ")+
