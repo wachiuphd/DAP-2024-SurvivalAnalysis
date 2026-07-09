@@ -105,8 +105,8 @@ plt.hr.mr.state <- ggplot(hr.st, aes(x = MR.dev, y = Dog.HR)) +
            label = list(bquote(italic(p) == .(hr.mr.pval))), hjust = 0, vjust = 3) +
   annotate("text", x = 0.75, y = 1.4,
            label = list(bquote(slope == .(hr.mr.slope))), hjust = 0, vjust = 4.5) +
-  xlab("Human Age-Adjusted Mortality Ratio\ndeviation from mean [2019-2023]") +
-  ylab("Canine Demographics-Adjusted Mortality Hazard Ratio\ndeviation from mean") +
+  xlab("Human age-adjusted mortality ratio\n(relative to overall mean, 2019–2023)") +
+  ylab("Canine adjusted mortality hazard ratio\n(relative to overall mean)") +
   theme(panel.grid.minor = element_blank(), legend.position = "none")
 print(plt.hr.mr.state)
 
@@ -164,8 +164,8 @@ plt.hr.mr23.state <- ggplot(hr23.st, aes(x = MR.dev, y = Dog.HR)) +
            label = list(bquote(italic(p) == .(hr.mr23.pval))), hjust = 0, vjust = 3) +
   annotate("text", x = 0.75, y = 1.4,
            label = list(bquote(slope == .(hr.mr23.slope))), hjust = 0, vjust = 4.5) +
-  xlab("Human Age-Adjusted Mortality Ratio\ndeviation from mean [2023]") +
-  ylab("Canine Demographics-Adjusted Mortality Hazard Ratio\ndeviation from mean") +
+  xlab("Human age-adjusted mortality ratio\n(relative to overall mean, 2023)") +
+  ylab("Canine adjusted mortality hazard ratio\n(relative to overall mean)") +
   theme(panel.grid.minor = element_blank(), legend.position = "none")
 
 print(plt.hr.mr23.state)
@@ -203,7 +203,7 @@ plt.hr.le.state <-
   theme_bw()+coord_transform(y="log10",ylim=c(0.5,2.1))+
   annotation_logticks(side="l",scaled=FALSE)+
   geom_smooth(aes(weight=1/Dog.SE^2),method="lm")+
-  geom_abline(slope=-1/78.2,intercept=2,color="red",linetype="dashed")+
+  geom_abline(slope=-1/76.4,intercept=2,color="red",linetype="dashed")+
   annotate("text",x=71,y=2,label="Linear fit to state-level HRs",hjust=0,vjust=0)+
   annotate("text", x = 71, y = 2,
            label = list(bquote(italic(r) == .(hr.le.r) * "," ~ italic(rho) == .(hr.le.rho))),
@@ -217,7 +217,7 @@ plt.hr.le.state <-
   theme(panel.grid.minor = element_blank(),legend.position = "none")
 print(plt.hr.le.state)
 
-hr.le.slope.rel <- signif(78.2*first(lm.le.sum$coefficients["LE",]),2)
+hr.le.slope.rel <- signif(76.4*first(lm.le.sum$coefficients["LE",]),2)
 
 #### Try using life expectancy as a continuous variable
 
