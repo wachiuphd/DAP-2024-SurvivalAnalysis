@@ -6,7 +6,6 @@ library(survminer)
 library(dplyr)
 library(viridisLite)
 library(stringr)
-# library(ClustOfVar)
 source("ggforest2.R")
 datfolder <- "data"
 resultsfolder <- "results"
@@ -185,11 +184,6 @@ write.csv(cox.coef,file.path(resultsfolder,"Supp.HLES_Cox_signif_results.csv"))
 save(cox.coef,vars.to.keep,vars.to.plot,d,pvals,vargroups,variable_group_tab,
      variable_group_tab.df,
      file=file.path(resultsfolder,"Supp.HLES_Cox.Rdata"))
-
-# d.quant<-d[,as.character(subset(vars.to.plot,!make.factor)$Variable)]
-# d.quali<-d[,as.character(subset(vars.to.plot,make.factor)$Variable)]
-# d.hclusvar<-hclustvar(d.quant,d.quali)
-# save(d.hclusvar,file=file.path(resultsfolder,"Supp.HLES_Cox-hclusvar.Rdata"))
 
 ###### Sensitivity analysis - Mature Adult LifeStage only
 
