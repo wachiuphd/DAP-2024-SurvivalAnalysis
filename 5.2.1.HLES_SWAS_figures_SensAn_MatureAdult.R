@@ -1,4 +1,4 @@
-library(ggdendro)
+# SWAS figures — sensitivity: restricted to Mature Adult lifestage.
 library(ggplot2)
 library(tidyverse)
 library(stringr)
@@ -153,9 +153,6 @@ for (j in 1:nrow(vars.to.plot.MAdult)) {
       geom_vline(xintercept=1,linetype="dotted")+
       geom_point(aes(x=`exp(coef)`,y=y,shape=(y==Ref)),size=3,color="grey50")+
       geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=y),height=0)+
-      # geom_text(aes(x=1/10,y=y,
-      #               label=paste0("HR=")),
-      #           hjust=0,vjust=-1,size=3,data=first(cox.coef.tmp))+
       geom_text(aes(x=1/10,y=y,
                     label=paste0(round(`exp(coef)`,2),
                                  " [",round(`lower .95`,2),"-",
@@ -199,9 +196,6 @@ plt.cox.numeric <-
   geom_vline(xintercept=1,linetype="dotted")+
   geom_point(aes(x=`exp(coef)`,y=Variable,color=variable_group_name),shape=15,size=3)+
   geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=Variable),height=0)+
-  # geom_text(aes(x=1/4,y=Variable,
-  #               label=paste0("HR=")),
-  #           hjust=0,vjust=-1,size=2.5,data=last(cox.coef.MAdult.num))+
   geom_text(aes(x=1/4,y=Variable,
                 label=paste0(round(`exp(coef)`,3),
                              " [",round(`lower .95`,3),"-",

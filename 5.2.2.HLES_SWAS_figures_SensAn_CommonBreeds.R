@@ -1,4 +1,4 @@
-library(ggdendro)
+# SWAS figures — sensitivity: restricted to 16 most common single breeds.
 library(ggplot2)
 library(tidyverse)
 library(stringr)
@@ -131,35 +131,6 @@ plt.man.hles<-
   ggtitle("Restricted to Top 16 AKC-Recognized Breeds in Cohort")
 print(plt.man.hles)
 
-# plt.man.hles.zoom<-
-#   ggplot(subset(pvals.top16,!is.na(score.pval.adjust)))+
-#   geom_point(aes(y=-log10(score.pval.adjust),x=as.numeric(Variable),
-#                  color=variable_group_name,size=score.pval.adjust<0.05))+
-#   geom_segment(aes(y=-log10(score.pval.adjust),x=as.numeric(Variable),
-#                    color=variable_group_name,yend=0,xend=as.numeric(Variable)))+
-#   geom_rect(aes(xmin=xmin,xmax=xmax,ymin=-1,ymax=0,fill=variable_group_name),
-#             data=variable_group_tab.df)+
-#   scale_fill_discrete("",labels=gsub(" ","\n",
-#                                      as.character(variable_group_tab.df$variable_group_name)))+
-#   scale_size_manual("p.adjust<0.05",values=c(0.01,1))+
-#   ylab("")+
-#   theme_bw()+
-#   xlab("HLES Variable")+theme(axis.text.x = element_blank(),
-#                               axis.ticks = element_blank(),
-#                               panel.grid.major.x = element_blank(),
-#                               panel.grid.minor.x = element_blank(),
-#                               legend.position = "inside",
-#                               legend.position.inside = c(0.5,0.01),
-#                               legend.justification = c("center","bottom"),
-#                               legend.text = element_text(size = 9))+
-#   coord_cartesian(ylim=c(-1,12))+scale_y_continuous(breaks=seq(0,12,2))+
-#   geom_hline(yintercept=-log10(c(0.05,1e-6)),linetype=c("dotted","dashed"),color="grey50")+
-#   guides(color="none",size="none",fill="none")
-# print(plt.man.hles.zoom)
-# 
-# fig2.with.inset<-ggdraw() + draw_plot(plt.man.hles) + 
-#   draw_plot(plt.man.hles.zoom,x=0.05,y=0.6,width=0.8,height=0.3)
-
 ggsave(file.path(figfolder,"Supp.Fig.Manh.top16.pdf"),plt.man.hles,height=2,width=6,scale=2)
 
 ## Plots of categorical variables
@@ -194,9 +165,6 @@ for (j in 1:nrow(vars.to.plot.top16)) {
       geom_vline(xintercept=1,linetype="dotted")+
       geom_point(aes(x=`exp(coef)`,y=y,shape=(y==Ref)),size=3,color="grey50")+
       geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=y),height=0)+
-      # geom_text(aes(x=1/10,y=y,
-      #               label=paste0("HR=")),
-      #           hjust=0,vjust=-1,size=3,data=first(cox.coef.tmp))+
       geom_text(aes(x=1/10,y=y,
                     label=paste0(round(`exp(coef)`,2),
                                  " [",round(`lower .95`,2),"-",
@@ -240,9 +208,6 @@ plt.cox.numeric <-
   geom_vline(xintercept=1,linetype="dotted")+
   geom_point(aes(x=`exp(coef)`,y=Variable,color=variable_group_name),shape=15,size=3)+
   geom_errorbarh(aes(xmin=`lower .95`,xmax=`upper .95`,y=Variable),height=0)+
-  # geom_text(aes(x=1/4,y=Variable,
-  #               label=paste0("HR=")),
-  #           hjust=0,vjust=-1,size=2.5,data=last(cox.coef.top16.num))+
   geom_text(aes(x=1/4,y=Variable,
                 label=paste0(round(`exp(coef)`,3),
                              " [",round(`lower .95`,3),"-",
